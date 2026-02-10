@@ -20,7 +20,6 @@ payara-web.xml
 glassfish-web.xml
 
 # Application-specific
-.generator-config
 
 # Uploaded files (if any)
 uploads/
