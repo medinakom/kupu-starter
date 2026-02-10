@@ -1,4 +1,4 @@
-package id.my.mdn.kupu;
+package id.my.mdn.kupu.app;
 
 import id.my.mdn.kupu.core.base.AbstractApplication;
 import jakarta.annotation.PostConstruct;

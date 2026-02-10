@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Kupu Module Deletion Script
+# Kupu Application Module Deletion Script
 # WARNING: This script permanently deletes module files and database tables
 
 set -e
@@ -10,6 +10,14 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
+
+# 1. Load configuration
+if [ -f ".generator-config" ]; then
+    APP_PACKAGE=$(cat .generator-config | head -1)
+else
+    echo "Error: .generator-config not found."
+    exit 1
+fi
 
 # Parse arguments
 MODULE_NAME=$1
@@ -30,11 +38,13 @@ if [ -z "$MODULE_NAME" ]; then
     exit 1
 fi
 
+PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
+
 # Define paths
-JAVA_DIR="kupu-web/src/main/java/id/my/mdn/kupu/app/$MODULE_NAME"
-RES_DIR="kupu-web/src/main/resources/id/my/mdn/kupu/app/$MODULE_NAME"
-WEB_DIR="kupu-web/src/main/webapp/app/$MODULE_NAME"
-COMP_DIR="kupu-web/src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
+JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
+RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
+WEB_DIR="src/main/webapp/app/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
 
 # Check if module exists
 if [ ! -d "$JAVA_DIR" ]; then
@@ -114,26 +124,5 @@ fi
 echo ""
 echo -e "${GREEN}Module '$MODULE_NAME' files deleted successfully!${NC}"
 echo ""
-
-# Database cleanup instructions (DISABLED FOR NOW)
-# if [ -n "$TABLE_PREFIX" ]; then
-#     echo -e "${YELLOW}========================================${NC}"
-#     echo -e "${YELLOW}Database Cleanup Required${NC}"
-#     echo -e "${YELLOW}========================================${NC}"
-#     echo ""
-#     echo "To drop database tables, connect to your database and run:"
-#     echo ""
-#     echo -e "${YELLOW}-- List tables with prefix${NC}"
-#     echo "SHOW TABLES LIKE '${TABLE_PREFIX}_%';"
-#     echo ""
-#     echo -e "${YELLOW}-- Drop tables (review list first!)${NC}"
-#     echo "-- DROP TABLE ${TABLE_PREFIX}_PRODUCT;"
-#     echo "-- DROP TABLE ${TABLE_PREFIX}_ORDER;"
-#     echo "-- etc."
-#     echo ""
-#     echo -e "${YELLOW}-- Clean up KEYGEN entries${NC}"
-#     echo "DELETE FROM KEYGEN WHERE SEQUENCE_NAME LIKE '${TABLE_PREFIX}_%';"
-#     echo ""
-# fi
 
 echo -e "${GREEN}Done!${NC}"
