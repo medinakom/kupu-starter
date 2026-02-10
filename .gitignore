@@ -1,0 +1,26 @@
+# Module-specific build artifacts
+target/
+
+# Test reports
+surefire-reports/
+failsafe-reports/
+
+# Generated sources
+generated-sources/
+generated-test-sources/
+
+# WAR deployment
+*.war
+
+# Web application logs
+src/main/webapp/WEB-INF/logs/
+
+# Payara/GlassFish
+payara-web.xml
+glassfish-web.xml
+
+# Application-specific
+.generator-config
+
+# Uploaded files (if any)
+uploads/

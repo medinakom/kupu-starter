@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app metadata-complete="false" version="6.0" xmlns="https://jakarta.ee/xml/ns/jakartaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd">
+    <context-param>
+        <param-name>jakarta.faces.PROJECT_STAGE</param-name>
+        <param-value>Development</param-value>
+    </context-param>
+    <context-param>
+        <param-name>jakarta.faces.DATETIMECONVERTER_DEFAULT_TIMEZONE_IS_SYSTEM_TIMEZONE</param-name>
+        <param-value>true</param-value>
+    </context-param>
+    <context-param>
+        <param-name>jakarta.faces.WEBAPP_RESOURCES_DIRECTORY</param-name>
+        <param-value>WEB-INF/resources</param-value>
+    </context-param>
+    <context-param>
+        <param-name>primefaces.SUBMIT</param-name>
+        <param-value>partial</param-value>
+    </context-param>
+    <context-param>
+        <param-name>primefaces.UPLOADER</param-name>
+        <param-value>auto</param-value>
+    </context-param>
+    <context-param>
+        <param-name>primefaces.FONT_AWESOME</param-name>
+        <param-value>true</param-value>
+    </context-param>
+    <context-param>
+        <param-name>primefaces.THEME</param-name>
+        <param-value>saga</param-value>
+    </context-param>
+    <mime-mapping>
+        <extension>eot</extension>
+        <mime-type>application/vnd.ms-fontobject</mime-type>
+    </mime-mapping>
+    <mime-mapping>
+        <extension>ttf</extension>
+        <mime-type>application/x-font-ttf</mime-type>
+    </mime-mapping>
+    <mime-mapping>
+        <extension>woff</extension>
+        <mime-type>application/x-font-woff</mime-type>
+    </mime-mapping>
+    <mime-mapping>
+        <extension>woff2</extension>
+        <mime-type>application/x-font-woff2</mime-type>
+    </mime-mapping>
+    <servlet>
+        <servlet-name>Faces Servlet</servlet-name>
+        <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>Faces Servlet</servlet-name>
+        <url-pattern>*.xhtml</url-pattern>
+    </servlet-mapping>
+    
+    <session-config>
+        <session-timeout>30</session-timeout>
+    </session-config>        
+        
+    <error-page>
+        <exception-type>
+            jakarta.faces.application.ViewExpiredException
+        </exception-type>
+        <location>/expired.xhtml</location>
+    </error-page>
+    
+    <error-page>
+        <error-code>403</error-code>
+        <location>/403.xhtml</location>
+    </error-page>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>App: fallback</web-resource-name>
+            <url-pattern>/app/*</url-pattern>
+        </web-resource-collection>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Core: security</web-resource-name>
+            <url-pattern>/core/security/view/*</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>manage_security</role-name>
+            <role-name>manage_universe</role-name>
+        </auth-constraint>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Core: config</web-resource-name>
+            <url-pattern>/core/config/view/*</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>manage_configs</role-name>
+            <role-name>manage_universe</role-name>
+        </auth-constraint>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Core: Password Editor</web-resource-name>
+            <url-pattern>/core/security/view/passwordeditor.xhtml</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>can_login</role-name>
+        </auth-constraint>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Core: fallback</web-resource-name>
+            <url-pattern>/core/*</url-pattern>
+        </web-resource-collection>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Dashboard</web-resource-name>
+            <url-pattern>/index.xhtml</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>can_login</role-name>
+        </auth-constraint>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>The /resources folder</web-resource-name>
+            <url-pattern>/resources/*</url-pattern>
+        </web-resource-collection>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Diagnostics API</web-resource-name>
+            <url-pattern>/api/diag/*</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>can_login</role-name>
+        </auth-constraint>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Santri</web-resource-name>
+            <url-pattern>/app/santri/*</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>can_login</role-name>
+        </auth-constraint>
+    </security-constraint>
+    
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Santri API</web-resource-name>
+            <url-pattern>/api/santri/*</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>can_login</role-name>
+        </auth-constraint>
+    </security-constraint>
+
+</web-app>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="in_ID" 
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:h="jakarta.faces.html"
+      xmlns:ui="jakarta.faces.facelets">
+
+    <h:head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+        <link rel="shortcut icon" type="image/x-icon" href="#{resource['images/favicon.ico']}" />
+        <title>#{config.getString('config.AppName')}</title>
+        <h:outputStylesheet library="webjars" name="primeflex/3.3.1/primeflex.min.css" />
+        <ui:insert name="styles" />
+        <ui:insert name="jscript" />
+    </h:head>
+
+    <h:body class="m-0 bg-gray-100" style="background-image: url('#{externalContext.requestContextPath}/resources/images/login.svg')">
+
+        <div class="flex flex-column h-screen justify-content-center">
+            <div class="align-self-center">
+                <p:card class="w-20rem flex flex-column align-items-center px-3" style="border: 4px solid var(--gray-400); border-radius: 8px">
+                    <facet name="header">                            
+                        <div class="w-full flex justify-content-center">
+                            <p:graphicImage library="images" name="logo.png" class="w-16rem mb-4" />
+                        </div>
+                    </facet>
+                    <div class="w-full text-center">
+                        <h:outputText value="Halaman tujuan anda tidak ditemukan, silakan menghubungi Administrator." 
+                                      class="w-full" />
+                    </div>
+                    <div class="flex justify-content-center mt-2">
+                        <p:linkButton icon="pi pi-home" href="/" />
+                    </div>
+                </p:card>
+            </div>
+        </div>
+
+        <p:growl id="messages" showDetail="true"   />
+
+    </h:body>
+</html>

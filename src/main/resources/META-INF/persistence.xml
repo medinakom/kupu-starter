@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="3.0" xmlns="https://jakarta.ee/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd">
+  <persistence-unit name="KupuPersistenceUnit" transaction-type="JTA">
+    <jta-data-source>java:global/KupuDataSource</jta-data-source>
+    <jar-file>../../lib/kupu-core-1.0.jar</jar-file>
+    <class>id.my.mdn.kupu.core.accounting.entity.AccountingPeriodId</class>
+    <class>id.my.mdn.kupu.core.accounting.entity.AccountingPeriod</class>
+    <class>id.my.mdn.kupu.core.accounting.entity.AccountingTransaction</class>
+    <class>id.my.mdn.kupu.core.accounting.entity.AccountingTransactionType</class>
+    <class>id.my.mdn.kupu.core.accounting.entity.BusinessEntityGLAccountId</class>
+    <class>id.my.mdn.kupu.core.accounting.entity.BusinessEntityGLAccount</class>
+    <class>id.my.mdn.kupu.core.accounting.entity.GLAccount</class>
+    <class>id.my.mdn.kupu.core.accounting.entity.TransactionEntry</class>
+    <class>id.my.mdn.kupu.core.common.model.IntegerSerialSeed</class>
+    <class>id.my.mdn.kupu.core.common.model.MeasurementUnit</class>
+    <class>id.my.mdn.kupu.core.common.model.SerialSeed</class>
+    <class>id.my.mdn.kupu.core.common.model.TemperatureUnit</class>
+    <class>id.my.mdn.kupu.core.config.model.Config</class>
+    <class>id.my.mdn.kupu.core.hr.entity.Employee</class>
+    <class>id.my.mdn.kupu.core.hr.entity.Employment</class>
+    <class>id.my.mdn.kupu.core.hr.entity.Position</class>
+    <class>id.my.mdn.kupu.core.local.model.LocaleConverter</class>
+    <class>id.my.mdn.kupu.core.local.model.Translation</class>
+    <class>id.my.mdn.kupu.core.party.entity.Age</class>
+    <class>id.my.mdn.kupu.core.party.entity.BusinessEntity</class>
+    <class>id.my.mdn.kupu.core.party.entity.ContactMechanism</class>
+    <class>id.my.mdn.kupu.core.party.entity.ContactMechanismPurposeType</class>
+    <class>id.my.mdn.kupu.core.party.entity.Country</class>
+    <class>id.my.mdn.kupu.core.party.entity.District</class>
+    <class>id.my.mdn.kupu.core.party.entity.DummyRelationship</class>
+    <class>id.my.mdn.kupu.core.party.entity.ElectronicAddress</class>
+    <class>id.my.mdn.kupu.core.party.entity.ElectronicAddressPurposeType</class>
+    <class>id.my.mdn.kupu.core.party.entity.GeographicBoundary</class>
+    <class>id.my.mdn.kupu.core.party.entity.Organization</class>
+    <class>id.my.mdn.kupu.core.party.entity.OrganizationRole</class>
+    <class>id.my.mdn.kupu.core.party.entity.OrganizationType</class>
+    <class>id.my.mdn.kupu.core.party.entity.ParentOrganization</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyClassificationId</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyClassification</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyContactMechanismId</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyContactMechanism</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyContactMechanismPurposeId</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyContactMechanismPurpose</class>
+    <class>id.my.mdn.kupu.core.party.entity.Party</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyRelationshipId</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyRelationship</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyRelationshipType</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyRole</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyRoleType</class>
+    <class>id.my.mdn.kupu.core.party.entity.PartyType</class>
+    <class>id.my.mdn.kupu.core.party.entity.PersonIdentityId</class>
+    <class>id.my.mdn.kupu.core.party.entity.PersonIdentity</class>
+    <class>id.my.mdn.kupu.core.party.entity.PersonIdentityType</class>
+    <class>id.my.mdn.kupu.core.party.entity.Person</class>
+    <class>id.my.mdn.kupu.core.party.entity.PersonRole</class>
+    <class>id.my.mdn.kupu.core.party.entity.PersonType</class>
+    <class>id.my.mdn.kupu.core.party.entity.PostalAddress</class>
+    <class>id.my.mdn.kupu.core.party.entity.PostalAddressPurposeType</class>
+    <class>id.my.mdn.kupu.core.party.entity.PostalCode</class>
+    <class>id.my.mdn.kupu.core.party.entity.Region</class>
+    <class>id.my.mdn.kupu.core.party.entity.RoleType</class>
+    <class>id.my.mdn.kupu.core.party.entity.SubDistrict</class>
+    <class>id.my.mdn.kupu.core.party.entity.SubsidiaryOrganization</class>
+    <class>id.my.mdn.kupu.core.party.entity.TelecommunicationNumber</class>
+    <class>id.my.mdn.kupu.core.party.entity.TelecommunicationNumberPurposeType</class>
+    <class>id.my.mdn.kupu.core.party.entity.Urban</class>
+    <class>id.my.mdn.kupu.core.reporting.model.ReportMap</class>
+    <class>id.my.mdn.kupu.core.reporting.model.ReportTemplate</class>
+    <class>id.my.mdn.kupu.core.security.model.AccessControl</class>
+    <class>id.my.mdn.kupu.core.security.model.ApplicationSecurityGroup</class>
+    <class>id.my.mdn.kupu.core.security.model.ApplicationSecurityMapId</class>
+    <class>id.my.mdn.kupu.core.security.model.ApplicationSecurityMap</class>
+    <class>id.my.mdn.kupu.core.security.model.ApplicationUser</class>
+    <class>id.my.mdn.kupu.core.security.model.GroupAccessControlId</class>
+    <class>id.my.mdn.kupu.core.security.model.GroupAccessControl</class>
+    <class>id.my.mdn.kupu.core.security.model.SecurityToken</class>
+
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="eclipselink.archive.factory" value="org.eclipse.persistence.internal.jpa.deployment.ArchiveFactoryImpl"/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+      <property name="eclipselink.logging.level" value="FINE"/>
+      <property name="eclipselink.logging.parameters" value="true"/>
+    </properties>
+  </persistence-unit>
+</persistence>
