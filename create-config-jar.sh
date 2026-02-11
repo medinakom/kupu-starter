@@ -46,7 +46,7 @@ DBMS_URL_PREFIXES=(
     ["MySQL"]="jdbc:mysql://"
     ["MariaDB"]="jdbc:mariadb://"
     ["HSQLDB"]="jdbc:hsqldb:hsql://"
-    ["H2"]="jdbc:h2:tcp://"
+    ["H2"]="jdbc:h2:"
     ["SQLServer"]="jdbc:sqlserver://"
     ["Oracle"]="jdbc:oracle:thin:@"
 )
@@ -147,6 +147,8 @@ if [ "$SKIP_INTERACTIVE" = false ]; then
                  DB_URL="${URL_PREFIX}${DB_HOST}:${DB_PORT};databaseName=${DB_NAME}"
             elif [ "$DBMS_TYPE" = "Oracle" ]; then
                  DB_URL="${URL_PREFIX}${DB_HOST}:${DB_PORT}:${DB_NAME}"
+            elif [ "$DBMS_TYPE" = "H2" ]; then
+                 DB_URL="${URL_PREFIX}./${DB_NAME}"
             else
                  DB_URL="${URL_PREFIX}${DB_HOST}:${DB_PORT}/${DB_NAME}"
             fi
@@ -164,9 +166,15 @@ fi
 # Final Validation
 if [ "$CREATE_DS" = "true" ] && [ -z "$DRIVER_CLASS" ]; then
     # Fallback default if running non-interactive without specific driver
-    DRIVER_CLASS="org.postgresql.ds.PGConnectionPoolDataSource"
+    DRIVER_CLASS="org.h2.jdbcx.JdbcDataSource"
     if [ -z "$DB_URL" ]; then
-        DB_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
+        DB_URL="jdbc:h2:tcp://localhost/./${DB_NAME}"
+    fi
+    if [ -z "$DB_USER" ]; then
+        DB_USER="sa"
+    fi
+    if [ -z "$DB_PASS" ]; then
+        DB_PASS="sa"
     fi
 fi
 
@@ -191,8 +199,8 @@ cat <<XML > "$WORK_DIR/META-INF/web-fragment.xml"
 <?xml version="1.0" encoding="UTF-8"?>
 <web-fragment xmlns="https://jakarta.ee/xml/ns/jakartaee"
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-              xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-fragment_3_0.xsd"
-              version="3.0">
+              xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-fragment_6_0.xsd"
+              version="6.0">
               
     <name>kupu_config</name>
 XML
@@ -201,7 +209,7 @@ if [ "$CREATE_DS" = "true" ]; then
 cat <<XML >> "$WORK_DIR/META-INF/web-fragment.xml"
 
     <data-source>
-        <name>${DATA_SOURCE_NAME}</name>
+        <name>java:global/KupuDataSource</name>
         <class-name>${DRIVER_CLASS}</class-name>
         <url>${DB_URL}</url>
         <user>${DB_USER}</user>

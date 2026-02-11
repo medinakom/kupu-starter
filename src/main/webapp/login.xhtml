@@ -1,52 +1,45 @@
-<ui:composition xmlns="http://www.w3.org/1999/xhtml"
-                template="./WEB-INF/templates/page.xhtml"
-                xmlns:ui="jakarta.faces.facelets"
-                xmlns:p="primefaces"
-                xmlns:f="jakarta.faces.core"
-                xmlns:h="jakarta.faces.html">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" template="./WEB-INF/templates/page.xhtml"
+    xmlns:ui="jakarta.faces.facelets" xmlns:p="primefaces" xmlns:f="jakarta.faces.core" xmlns:h="jakarta.faces.html">
 
     <f:metadata>
         <ui:param name="title" value="Masuk" />
         <ui:param name="notool" value="true" />
         <ui:param name="nofooter" value="true" />
     </f:metadata>
-    
+
     <ui:define name="navbar" />
     <ui:define name="crud-tools" />
     <ui:define name="exporter" />
 
     <ui:define name="content">
-        <div class="flex flex-column h-screen justify-content-center">
-            <h:form prependId="false" class="align-self-center">
-                <p:card class="w-20rem flex flex-column align-items-center px-3" style="border: 4px solid var(--gray-400); border-radius: 8px">
-                    <facet name="header">
-                        <div class="w-full flex justify-content-center">
+        <div class="flex flex-column h-screen justify-content-center align-items-center">
+            <h:form prependId="false">
+                <p:card class="w-20rem flex flex-column align-items-center px-3"
+                    style="border: 4px solid var(--gray-400); border-radius: 8px; overflow: visible;">
+                    <f:facet name="header">
+                        <div class="flex justify-content-center" style="overflow: visible;">
                             <ui:insert name="logo">
-                                <p:graphicImage library="images" name="logo.png" class="w-16rem mb-4" />
+                                <p:graphicImage library="images" name="logo.svg"
+                                    style="width: 24rem; max-width: none; margin-top: -1rem;" />
                             </ui:insert>
                         </div>
-                    </facet>
+                    </f:facet>
                     <div class="ui-input-icon-left field w-full">
                         <i class="pi pi-user" />
-                        <p:inputText id="username" value="#{loginPage.username}"
-                                     class="w-full" />
+                        <p:inputText id="username" value="#{loginPage.username}" class="w-full" />
                     </div>
                     <div class="ui-input-icon-left field w-full">
                         <i class="pi pi-key" />
-                        <p:inputText id="password" type="password" 
-                                     value="#{loginPage.password}" 
-                                     class="w-full" />
+                        <p:inputText id="password" type="password" value="#{loginPage.password}" class="w-full" />
                     </div>
                     <div class="flex justify-content-center mt-2">
-                        <p:commandButton value="Masuk"
-                                         action="#{loginPage.login}"
-                                         ajax="false" />
+                        <p:commandButton value="Masuk" action="#{loginPage.login}" ajax="false" />
                     </div>
                 </p:card>
             </h:form>
         </div>
     </ui:define>
-    
+
     <ui:define name="pager" />
 
 </ui:composition>

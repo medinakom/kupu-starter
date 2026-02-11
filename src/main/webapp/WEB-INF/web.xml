@@ -44,6 +44,10 @@
         <extension>woff2</extension>
         <mime-type>application/x-font-woff2</mime-type>
     </mime-mapping>
+    <mime-mapping>
+        <extension>svg</extension>
+        <mime-type>image/svg+xml</mime-type>
+    </mime-mapping>
     <servlet>
         <servlet-name>Faces Servlet</servlet-name>
         <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>
@@ -138,26 +142,6 @@
         <web-resource-collection>
             <web-resource-name>Diagnostics API</web-resource-name>
             <url-pattern>/api/diag/*</url-pattern>
-        </web-resource-collection>
-        <auth-constraint>
-            <role-name>can_login</role-name>
-        </auth-constraint>
-    </security-constraint>
-    
-    <security-constraint>
-        <web-resource-collection>
-            <web-resource-name>Santri</web-resource-name>
-            <url-pattern>/app/santri/*</url-pattern>
-        </web-resource-collection>
-        <auth-constraint>
-            <role-name>can_login</role-name>
-        </auth-constraint>
-    </security-constraint>
-    
-    <security-constraint>
-        <web-resource-collection>
-            <web-resource-name>Santri API</web-resource-name>
-            <url-pattern>/api/santri/*</url-pattern>
         </web-resource-collection>
         <auth-constraint>
             <role-name>can_login</role-name>
