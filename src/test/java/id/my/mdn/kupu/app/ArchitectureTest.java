@@ -115,4 +115,62 @@ public class ArchitectureTest {
             })
             .allowEmptyShould(true);
 
+    @ArchTest
+    public static final ArchRule entities_must_have_id_field = classes().that()
+            .areAnnotatedWith(jakarta.persistence.Entity.class)
+            .should(new ArchCondition<JavaClass>("have an 'id' field annotated with @Id or @EmbeddedId") {
+                @Override
+                public void check(JavaClass item, ConditionEvents events) {
+                    boolean hasIdField = item.getAllFields().stream()
+                            .anyMatch(field -> field.getName().equals("id") && 
+                                    (field.isAnnotatedWith(jakarta.persistence.Id.class) || 
+                                     field.isAnnotatedWith(jakarta.persistence.EmbeddedId.class)));
+                    if (!hasIdField) {
+                        events.add(SimpleConditionEvent.violated(item, item.getFullName() + " must have a field named 'id' annotated with @Id or @EmbeddedId"));
+                    }
+                }
+            })
+            .allowEmptyShould(true)
+            .because("Kupu entities must use a standardized 'id' field for identity");
+
+    @ArchTest
+    public static final ArchRule entities_must_not_use_id_class = classes().that()
+            .areAnnotatedWith(jakarta.persistence.Entity.class)
+            .should().notBeAnnotatedWith(jakarta.persistence.IdClass.class)
+            .allowEmptyShould(true)
+            .because("Kupu uses @EmbeddedId for composite keys instead of @IdClass");
+
+    @ArchTest
+    public static final ArchRule entities_must_implement_standard_methods = classes().that()
+            .areAnnotatedWith(jakarta.persistence.Entity.class)
+            .and().doNotHaveModifier(JavaModifier.ABSTRACT)
+            .should(new ArchCondition<JavaClass>("implement hashCode(), equals(Object), and toString()") {
+                @Override
+                public void check(JavaClass item, ConditionEvents events) {
+                    boolean hasHashCode = item.getAllMethods().stream()
+                            .anyMatch(m -> m.getName().equals("hashCode") && m.getRawParameterTypes().isEmpty()
+                                    && !m.getOwner().getFullName().equals(Object.class.getName()));
+                    boolean hasEquals = item.getAllMethods().stream()
+                            .anyMatch(m -> m.getName().equals("equals") && m.getRawParameterTypes().size() == 1
+                                    && m.getRawParameterTypes().get(0).isEquivalentTo(Object.class)
+                                    && !m.getOwner().getFullName().equals(Object.class.getName()));
+                    boolean hasToString = item.getAllMethods().stream()
+                            .anyMatch(m -> m.getName().equals("toString") && m.getRawParameterTypes().isEmpty()
+                                    && !m.getOwner().getFullName().equals(Object.class.getName()));
+
+                    if (!hasHashCode)
+                        events.add(
+                                SimpleConditionEvent.violated(item, item.getFullName() + " must override hashCode()"));
+                    if (!hasEquals)
+                        events.add(SimpleConditionEvent.violated(item,
+                                item.getFullName() + " must override equals(Object)"));
+                    if (!hasToString)
+                        events.add(
+                                SimpleConditionEvent.violated(item, item.getFullName() + " must override toString()"));
+                }
+            })
+            .allowEmptyShould(true)
+            .because(
+                    "Entities must implement hashCode, equals, and toString for correct collection handling and logging");
+
 }
