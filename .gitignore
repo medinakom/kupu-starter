@@ -30,4 +30,4 @@ nb-configuration.xml
 # Binary/Local DB files
 
 # Dependencies
-src/main/webapp/WEB-INF/lib/
+src/main/webapp/WEB-INF/lib/*
