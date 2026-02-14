@@ -23,3 +23,11 @@ glassfish-web.xml
 
 # Uploaded files (if any)
 uploads/
+
+# IDE files
+nb-configuration.xml
+
+# Binary/Local DB files
+
+# Dependencies
+src/main/webapp/WEB-INF/lib/

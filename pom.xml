@@ -50,12 +50,6 @@
             <version>1.4.0</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <version>2.3.232</version>
-            <scope>runtime</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -94,27 +88,6 @@
                         </goals>
                         <configuration>
                             <executable>./generate-persistence.sh</executable>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>bootstrap-h2</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <async>true</async>
-                            <executable>java</executable>
-                            <arguments>
-                                <argument>-cp</argument>
-                                <classpath/>
-                                <argument>org.h2.tools.Server</argument>
-                                <argument>-tcp</argument>
-                                <argument>-tcpAllowOthers</argument>
-                                <argument>-ifNotExists</argument>
-                                <argument>-baseDir</argument>
-                                <argument>${project.basedir}</argument>
-                            </arguments>
                         </configuration>
                     </execution>
                     <execution>
