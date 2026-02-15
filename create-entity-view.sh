@@ -107,7 +107,7 @@ if [ -f "$ENTITY_FILE" ]; then
     echo "Validating architectural constraints for: $ENTITY_CAP..."
     
     # Ensure necessary imports
-    for imp in "java.io.Serializable" "java.util.Objects" "jakarta.persistence.Entity"; do
+    for imp in "java.io.Serializable" "java.util.Objects" "jakarta.persistence.Entity" "jakarta.persistence.Table"; do
         if ! grep -q "import $imp;" "$ENTITY_FILE"; then
             sed -i "/package /a \import $imp;" "$ENTITY_FILE"
         fi
@@ -117,6 +117,15 @@ if [ -f "$ENTITY_FILE" ]; then
     if ! grep -q "@Entity" "$ENTITY_FILE"; then
         echo "  - Missing @Entity. Injecting..."
         sed -i '/public class/i @Entity' "$ENTITY_FILE"
+    fi
+    
+    # Check @Table
+    if ! grep -q "@Table" "$ENTITY_FILE"; then
+        echo "  - Missing @Table. Injecting..."
+        sed -i "/@Entity/a @Table(name = \"${TABLE_PREFIX}_${ENTITY_UPPER}\")" "$ENTITY_FILE"
+    elif ! grep -q "@Table(name = \"${TABLE_PREFIX}_${ENTITY_UPPER}\")" "$ENTITY_FILE"; then
+        echo "  - @Table name mismatch. Updating..."
+        sed -i "s/@Table(name = \".*\")/@Table(name = \"${TABLE_PREFIX}_${ENTITY_UPPER}\")/" "$ENTITY_FILE"
     fi
     
     # Check Serializable
@@ -140,29 +149,40 @@ name = sys.argv[3]
 
 with open(path, 'r') as f: content = f.read()
 
+def replace_method(content, method_name, new_impl, signature_pattern):
+    # Find matching signature
+    match = re.search(signature_pattern, content, re.DOTALL)
+    if not match:
+        # If not found, append to end before last brace
+        return re.sub(r'\}\s*$', f'\n{new_impl}\n}}', content)
+    
+    start_idx = match.start()
+    # Find the first opening brace '{' after the signature
+    brace_start = content.find('{', start_idx)
+    if brace_start == -1: return content
+    
+    # Count braces to find the matching closing brace
+    count = 1
+    i = brace_start + 1
+    while count > 0 and i < len(content):
+        if content[i] == '{': count += 1
+        elif content[i] == '}': count -= 1
+        i += 1
+    
+    # Replace from start of signature to end of matching brace
+    return content[:start_idx] + new_impl + content[i:]
+
 # Standard toString
-ts_pattern = re.compile(r'@Override\s+public String toString\(\)\s*\{.*?\}|public String toString\(\)\s*\{.*?\}', re.DOTALL)
-ts_impl = f'@Override\n    public String toString() {{\n        return \"{pkg}.{name}[ id=\" + id + \" ]\";\n    }}'
-if ts_pattern.search(content):
-    content = ts_pattern.sub(ts_impl, content)
-else:
-    content = re.sub(r'\}\s*$', f'\n{ts_impl}\n}}', content)
+ts_impl = f'    @Override\n    public String toString() {{\n        return \"{pkg}.{name}[ id=\" + id + \" ]\";\n    }}'
+content = replace_method(content, 'toString', ts_impl, r'(@Override\s+)?public String toString\s*\(')
 
 # Standard hashCode
-hc_pattern = re.compile(r'@Override\s+public int hashCode\(\)\s*\{.*?\}|public int hashCode\(\)\s*\{.*?\}', re.DOTALL)
-hc_impl = f'@Override\n    public int hashCode() {{\n        int hash = 7;\n        hash = 97 * hash + Objects.hashCode(this.id);\n        return hash;\n    }}'
-if hc_pattern.search(content):
-    content = hc_pattern.sub(hc_impl, content)
-else:
-    content = re.sub(r'\}\s*$', f'\n{hc_impl}\n}}', content)
+hc_impl = f'    @Override\n    public int hashCode() {{\n        int hash = 7;\n        hash = 97 * hash + Objects.hashCode(this.id);\n        return hash;\n    }}'
+content = replace_method(content, 'hashCode', hc_impl, r'(@Override\s+)?public int hashCode\s*\(')
 
 # Standard equals
-eq_pattern = re.compile(r'@Override\s+public boolean equals\(Object [^)]+\)\s*\{.*?\}|public boolean equals\(Object [^)]+\)\s*\{.*?\}', re.DOTALL)
-eq_impl = f'@Override\n    public boolean equals(Object obj) {{\n        if (this == obj) return true;\n        if (obj == null || getClass() != obj.getClass()) return false;\n        final {name} other = ({name}) obj;\n        return Objects.equals(this.id, other.id);\n    }}'
-if eq_pattern.search(content):
-    content = eq_pattern.sub(eq_impl, content)
-else:
-    content = re.sub(r'\}\s*$', f'\n{eq_impl}\n}}', content)
+eq_impl = f'    @Override\n    public boolean equals(Object obj) {{\n        if (this == obj) return true;\n        if (obj == null || getClass() != obj.getClass()) return false;\n        final {name} other = ({name}) obj;\n        return Objects.equals(this.id, other.id);\n    }}'
+content = replace_method(content, 'equals', eq_impl, r'(@Override\s+)?public boolean equals\s*\(\s*Object ')
 
 with open(path, 'w') as f: f.write(content)
 " "$ENTITY_FILE" "$ENTITY_PKG" "$ENTITY_CAP"
