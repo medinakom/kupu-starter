@@ -173,7 +173,7 @@ def replace_method(content, method_name, new_impl, signature_pattern):
     return content[:start_idx] + new_impl + content[i:]
 
 # Standard toString
-ts_impl = f'    @Override\n    public String toString() {{\n        return \"{pkg}.{name}[ id=\" + id + \" ]\";\n    }}'
+ts_impl = f'    @Override\n    public String toString() {{\n        return id != null ? String.valueOf(id) : null;\n    }}'
 content = replace_method(content, 'toString', ts_impl, r'(@Override\s+)?public String toString\s*\(')
 
 # Standard hashCode
