@@ -65,8 +65,107 @@ case $PARTY_TYPE in
         ;;
 esac
 
-# 1. Generate Entity
-cat <<JAVA > "$JAVA_DIR/entity/${ROLE_CAP}.java"
+# 1.1 Discover Existing Entity
+ENTITY_FILE="$JAVA_DIR/entity/${ROLE_CAP}.java"
+if [ ! -f "$ENTITY_FILE" ]; then
+    FOUND_ENTITY=$(find src/main/java -name "$MODULE_NAME" -type d -exec find {} -name "${ROLE_CAP}.java" \; | head -n 1)
+    if [ -n "$FOUND_ENTITY" ]; then
+        ENTITY_FILE="$FOUND_ENTITY"
+        echo "Found existing entity at $ENTITY_FILE"
+    fi
+fi
+
+# 1.2 Discover Fields if entity exists
+FIELDS_ARRAY=()
+if [ -f "$ENTITY_FILE" ]; then
+    echo "Parsing fields from existing entity: $ROLE_CAP..."
+    while read -r line; do
+        if [[ $line =~ private[[:space:]]+([A-Za-z0-9_<>]+)[[:space:]]+([a-z[A-Z0-9_]+)\; ]]; then
+            TYPE="${BASH_REMATCH[1]}"
+            NAME="${BASH_REMATCH[2]}"
+            if [[ "$NAME" != "serialVersionUID" ]]; then
+                FIELDS_ARRAY+=("$TYPE:$NAME")
+            fi
+        fi
+    done < "$ENTITY_FILE"
+fi
+
+# 1.3 Architectural Validation & Fixing (if entity exists)
+if [ -f "$ENTITY_FILE" ]; then
+    echo "Validating architectural constraints for: $ROLE_CAP..."
+    
+    # Ensure necessary imports
+    for imp in "java.io.Serializable" "java.util.Objects" "jakarta.persistence.Entity" "jakarta.persistence.Table"; do
+        if ! grep -q "import $imp;" "$ENTITY_FILE"; then
+            sed -i "/package /a \import $imp;" "$ENTITY_FILE"
+        fi
+    done
+
+    # Check @Entity
+    if ! grep -q "@Entity" "$ENTITY_FILE"; then
+        echo "  - Missing @Entity. Injecting..."
+        sed -i '/public class/i @Entity' "$ENTITY_FILE"
+    fi
+    
+    # Check @Table
+    if ! grep -q "@Table" "$ENTITY_FILE"; then
+        echo "  - Missing @Table. Injecting..."
+        sed -i "/@Entity/a @Table(name = \"\${TABLE_PREFIX}_${ROLE_CAP^^}\")" "$ENTITY_FILE"
+    fi
+    
+    # Check Serializable
+    if ! grep -q "implements Serializable" "$ENTITY_FILE"; then
+        echo "  - Missing Serializable. Injecting..."
+        sed -i "s/class ${ROLE_CAP}/class ${ROLE_CAP} implements Serializable/" "$ENTITY_FILE"
+    fi
+
+    # Standardize Methods (hashCode, equals, toString)
+    if command -v python3 &>/dev/null; then
+        python3 -c '
+import sys, re, textwrap
+path = sys.argv[1]
+name = sys.argv[2]
+
+with open(path, "r") as f: content = f.read()
+
+def replace_method(content, method_name, new_impl, signature_pattern):
+    match = re.search(r"^([ \t]*)" + signature_pattern, content, re.MULTILINE | re.DOTALL)
+    if not match:
+        indented = new_impl.replace(chr(10), chr(10) + "    ")
+        return re.sub(r"\}\s*$", "\n\n    " + indented + "\n}", content)
+    
+    start_idx = match.start()
+    indent = match.group(1)
+    indented_impl = textwrap.indent(new_impl, indent)
+    brace_start = content.find("{", start_idx)
+    if brace_start == -1: return content
+    
+    count = 1
+    i = brace_start + 1
+    while count > 0 and i < len(content):
+        if content[i] == "{": count += 1
+        elif content[i] == "}": count -= 1
+        i += 1
+    
+    return content[:start_idx] + indented_impl + content[i:]
+
+ts_impl = "@Override\npublic String toString() {\n    return id != null ? String.valueOf(id) : null;\n}"
+content = replace_method(content, "toString", ts_impl, r"(@Override\s+)?public String toString\s*\(")
+
+hc_impl = "@Override\npublic int hashCode() {\n    int hash = 7;\n    hash = 97 * hash + Objects.hashCode(this.id);\n    return hash;\n}"
+content = replace_method(content, "hashCode", hc_impl, r"(@Override\s+)?public int hashCode\s*\(")
+
+eq_impl = "@Override\npublic boolean equals(Object obj) {\n    if (this == obj) return true;\n    if (obj == null || getClass() != obj.getClass()) return false;\n    final " + name + " other = (" + name + ") obj;\n    return Objects.equals(this.id, other.id);\n}"
+content = replace_method(content, "equals", eq_impl, r"(@Override\s+)?public boolean equals\s*\(\s*Object ")
+
+with open(path, "w") as f: f.write(content)
+' "$ENTITY_FILE" "$ROLE_CAP"
+    fi
+fi
+
+# 1.5 Generate Entity if missing
+if [ ! -f "$ENTITY_FILE" ]; then
+cat <<JAVA > "$ENTITY_FILE"
 package ${BASE_PACKAGE}.entity;
 
 import id.my.mdn.kupu.core.base.model.EntityBuilder;
@@ -77,6 +176,7 @@ import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Objects;
 
 @Entity
 @Table(name = "\${TABLE_PREFIX}_${ROLE_CAP^^}")
@@ -106,8 +206,29 @@ public class ${ROLE_CAP} extends ${BASE_ENTITY} implements Serializable {
             return this;
         }
     }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 97 * hash + Objects.hashCode(this.id);
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        final ${ROLE_CAP} other = (${ROLE_CAP}) obj;
+        return Objects.equals(this.id, other.id);
+    }
+
+    @Override
+    public String toString() {
+        return id != null ? String.valueOf(id) : null;
+    }
 }
 JAVA
+fi
 
 # 2. Generate Facade
 cat <<JAVA > "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
@@ -266,7 +387,15 @@ cat <<XHTML > "$COMP_DIR/list/${ROLE_LOWER}list.xhtml"
             <p:column headerText="Name">
                 <h:outputText value="#{item.party.name}" />
             </p:column>
-            
+$(for field in "${FIELDS_ARRAY[@]}"; do
+    NAME="${field#*:}"
+    if [[ "$NAME" != "id" && "$NAME" != "party" && "$NAME" != "person" && "$NAME" != "organization" ]]; then
+        PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
+        echo "            <p:column headerText=\"$PRETTY_NAME\">"
+        echo "                <h:outputText value=\"#{item.$NAME}\" />"
+        echo "            </p:column>"
+    fi
+done)            
         </p:dataTable>
     </composite:implementation>
 
@@ -287,12 +416,23 @@ cat <<XHTML > "$COMP_DIR/editor/${ROLE_LOWER}editor.xhtml"
     </composite:interface>
 
     <composite:implementation>
-        <div class="grid">
+        <div class="grid w-full p-3">
             <div class="col-12">
-               <!-- Integrated Role + Party Editor -->
-               <h3>\${cc.attrs.value.id == null ? 'Create' : 'Edit'} ${ROLE_CAP}</h3>
+               <h3>#{cc.attrs.value.id == null ? 'Create' : 'Edit'} ${ROLE_CAP}</h3>
             </div>
-            <!-- Blank placeholder for integrated editor -->
+$(for field in "${FIELDS_ARRAY[@]}"; do
+    NAME="${field#*:}"
+    if [[ "$NAME" != "id" && "$NAME" != "party" && "$NAME" != "person" && "$NAME" != "organization" ]]; then
+        PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
+        echo "            <div class=\"col-12 md:col-6\">"
+        echo "                <div class=\"form-field\">"
+        echo "                    <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
+        echo "                    <p:inputText id=\"$NAME\" value=\"#{cc.attrs.value.$NAME}\" class=\"block w-full\" />"
+        echo "                    <p:message for=\"$NAME\" />"
+        echo "                </div>"
+        echo "            </div>"
+    fi
+done)
         </div>
     </composite:implementation>
 
@@ -316,12 +456,27 @@ cat <<XHTML > "$COMP_DIR/detail/${ROLE_LOWER}detail.xhtml"
         <div class="grid">
             <div class="col-12 md:col-6">
                 <p:panel header="Party Information">
-                    <h:outputText value="#{cc.attrs.value.party.name}" />
+                    <p:panelGrid columns="2" layout="grid" styleClass="ui-panelgrid-blank">
+                        <h:outputLabel value="ID:" />
+                        <h:outputText value="#{cc.attrs.value.party.id}" />
+                        
+                        <h:outputLabel value="Name:" />
+                        <h:outputText value="#{cc.attrs.value.party.name}" />
+                    </p:panelGrid>
                 </p:panel>
             </div>
             <div class="col-12 md:col-6">
                 <p:panel header="Role Information">
-                    <!-- Blank placeholder for role details -->
+                    <p:panelGrid columns="2" layout="grid" styleClass="ui-panelgrid-blank">
+$(for field in "${FIELDS_ARRAY[@]}"; do
+    NAME="${field#*:}"
+    if [[ "$NAME" != "id" && "$NAME" != "party" && "$NAME" != "person" && "$NAME" != "organization" ]]; then
+        PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
+        echo "                        <h:outputLabel value=\"$PRETTY_NAME:\" />"
+        echo "                        <h:outputText value=\"#{cc.attrs.value.$NAME}\" />"
+    fi
+done)
+                    </p:panelGrid>
                 </p:panel>
             </div>
         </div>
