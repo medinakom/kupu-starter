@@ -90,24 +90,6 @@
                             <executable>./generate-persistence.sh</executable>
                         </configuration>
                     </execution>
-                    <execution>
-                        <id>create-default-config</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>bash</executable>
-                            <arguments>
-                                <argument>-c</argument>
-                                <argument>
-                                    if [ ! -f src/main/webapp/WEB-INF/lib/kupu-fragment.jar ]; then
-                                        ./create-config-jar.sh --no-interactive --output src/main/webapp/WEB-INF/lib/kupu-fragment.jar;
-                                    fi
-                                </argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             <plugin>

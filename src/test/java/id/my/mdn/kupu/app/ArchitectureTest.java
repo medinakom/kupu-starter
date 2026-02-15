@@ -46,20 +46,17 @@ public class ArchitectureTest {
             .and().areNotAssignableTo(FormPage.class)
             .and().resideOutsideOfPackage("id.my.mdn.kupu.core..")
             .should().beAnnotatedWith(jakarta.faces.view.ViewScoped.class)
-            .orShould().beAnnotatedWith(ConversationScoped.class)
             .allowEmptyShould(true)
-            .because("Standard Page backing beans must be either jakarta.faces.view.ViewScoped or ConversationScoped");
+            .because("Standard Page backing beans must be jakarta.faces.view.ViewScoped");
 
     @ArchTest
     public static final ArchRule form_page_subclasses_should_be_scoped = classes().that()
             .areAssignableTo(FormPage.class)
             .and().doNotHaveModifier(JavaModifier.ABSTRACT)
             .and().resideOutsideOfPackage("id.my.mdn.kupu.core..")
-            .should().beAnnotatedWith(jakarta.faces.view.ViewScoped.class)
-            .orShould().beAnnotatedWith(ConversationScoped.class)
-            .orShould().beAnnotatedWith(Dependent.class)
+            .should().beAnnotatedWith(ConversationScoped.class)
             .allowEmptyShould(true)
-            .because("FormPage backing beans can be jakarta.faces.view.ViewScoped, ConversationScoped, or Dependent");
+            .because("FormPage backing beans must be ConversationScoped");
 
     @ArchTest
     public static final ArchRule value_list_subclasses_should_be_dependent_scoped = classes().that()
@@ -69,6 +66,22 @@ public class ArchitectureTest {
             .should().beAnnotatedWith(Dependent.class)
             .allowEmptyShould(true)
             .because("Concrete IValueList implementations can only have dependent scope");
+
+    @ArchTest
+    public static final ArchRule value_list_subclasses_should_reside_in_view_list_package = classes().that()
+            .areAssignableTo(IValueList.class)
+            .and().resideOutsideOfPackage("id.my.mdn.kupu.core..")
+            .should().resideInAPackage("..view.list..")
+            .allowEmptyShould(true)
+            .because("ValueList subclasses must be organized in the view.list sub-package");
+
+    @ArchTest
+    public static final ArchRule filter_content_subclasses_should_reside_in_view_filter_package = classes().that()
+            .areAssignableTo(id.my.mdn.kupu.core.base.view.widget.FilterContent.class)
+            .and().resideOutsideOfPackage("id.my.mdn.kupu.core..")
+            .should().resideInAPackage("..view.filter..")
+            .allowEmptyShould(true)
+            .because("FilterContent subclasses must be organized in the view.filter sub-package");
 
     @ArchTest
     public static final ArchRule page_subclasses_at_unusual_location_should_be_annotated_with_view = classes().that()
