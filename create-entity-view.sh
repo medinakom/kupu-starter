@@ -99,7 +99,76 @@ if [ -f "$ENTITY_FILE" ]; then
                 FIELDS_ARRAY+=("$TYPE:$NAME")
             fi
         fi
-    done < "$ENTITY_FILE"
+done < "$ENTITY_FILE"
+fi
+
+# 1.5.1 Architectural Validation & Fixing (if entity exists)
+if [ -f "$ENTITY_FILE" ]; then
+    echo "Validating architectural constraints for: $ENTITY_CAP..."
+    
+    # Ensure necessary imports
+    for imp in "java.io.Serializable" "java.util.Objects" "jakarta.persistence.Entity"; do
+        if ! grep -q "import $imp;" "$ENTITY_FILE"; then
+            sed -i "/package /a \import $imp;" "$ENTITY_FILE"
+        fi
+    done
+
+    # Check @Entity
+    if ! grep -q "@Entity" "$ENTITY_FILE"; then
+        echo "  - Missing @Entity. Injecting..."
+        sed -i '/public class/i @Entity' "$ENTITY_FILE"
+    fi
+    
+    # Check Serializable
+    if ! grep -q "implements Serializable" "$ENTITY_FILE"; then
+        echo "  - Missing Serializable. Injecting..."
+        sed -i "s/class ${ENTITY_CAP}/class ${ENTITY_CAP} implements Serializable/" "$ENTITY_FILE"
+    fi
+
+    # Check @Id or @EmbeddedId
+    if ! grep -qE "@Id|@EmbeddedId" "$ENTITY_FILE"; then
+         echo "  [WARNING] No @Id or @EmbeddedId found in $ENTITY_CAP. Manual verification required."
+    fi
+
+    # Standardize Methods (hashCode, equals, toString)
+    if command -v python3 &>/dev/null; then
+        python3 -c "
+import sys, re
+path = sys.argv[1]
+pkg = sys.argv[2]
+name = sys.argv[3]
+
+with open(path, 'r') as f: content = f.read()
+
+# Standard toString
+ts_pattern = re.compile(r'@Override\s+public String toString\(\)\s*\{.*?\}|public String toString\(\)\s*\{.*?\}', re.DOTALL)
+ts_impl = f'@Override\n    public String toString() {{\n        return \"{pkg}.{name}[ id=\" + id + \" ]\";\n    }}'
+if ts_pattern.search(content):
+    content = ts_pattern.sub(ts_impl, content)
+else:
+    content = re.sub(r'\}\s*$', f'\n{ts_impl}\n}}', content)
+
+# Standard hashCode
+hc_pattern = re.compile(r'@Override\s+public int hashCode\(\)\s*\{.*?\}|public int hashCode\(\)\s*\{.*?\}', re.DOTALL)
+hc_impl = f'@Override\n    public int hashCode() {{\n        int hash = 7;\n        hash = 97 * hash + Objects.hashCode(this.id);\n        return hash;\n    }}'
+if hc_pattern.search(content):
+    content = hc_pattern.sub(hc_impl, content)
+else:
+    content = re.sub(r'\}\s*$', f'\n{hc_impl}\n}}', content)
+
+# Standard equals
+eq_pattern = re.compile(r'@Override\s+public boolean equals\(Object [^)]+\)\s*\{.*?\}|public boolean equals\(Object [^)]+\)\s*\{.*?\}', re.DOTALL)
+eq_impl = f'@Override\n    public boolean equals(Object obj) {{\n        if (this == obj) return true;\n        if (obj == null || getClass() != obj.getClass()) return false;\n        final {name} other = ({name}) obj;\n        return Objects.equals(this.id, other.id);\n    }}'
+if eq_pattern.search(content):
+    content = eq_pattern.sub(eq_impl, content)
+else:
+    content = re.sub(r'\}\s*$', f'\n{eq_impl}\n}}', content)
+
+with open(path, 'w') as f: f.write(content)
+" "$ENTITY_FILE" "$ENTITY_PKG" "$ENTITY_CAP"
+    else
+        echo "  [WARNING] python3 not found. Skipping method standardization."
+    fi
 fi
 
 if [ ${#FIELDS_ARRAY[@]} -eq 0 ]; then
