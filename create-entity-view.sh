@@ -85,7 +85,28 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 TABLE_PREFIX=${TABLE_PREFIX:-$(echo "$MODULE_NAME" | tr '[:lower:]' '[:upper:]')}
 
-# 1.5 Generate Entity if missing
+# 1.5 Discover Fields if entity exists
+FIELDS_ARRAY=()
+if [ -f "$ENTITY_FILE" ]; then
+    echo "Parsing fields from existing entity: $ENTITY_CAP..."
+    # Extract private fields, excluding serialVersionUID and static fields
+    # Format: Type:Name
+    while read -r line; do
+        if [[ $line =~ private[[:space:]]+([A-Za-z0-9_<>]+)[[:space:]]+([a-z[A-Z0-9_]+)\; ]]; then
+            TYPE="${BASH_REMATCH[1]}"
+            NAME="${BASH_REMATCH[2]}"
+            if [[ "$NAME" != "serialVersionUID" ]]; then
+                FIELDS_ARRAY+=("$TYPE:$NAME")
+            fi
+        fi
+    done < "$ENTITY_FILE"
+fi
+
+if [ ${#FIELDS_ARRAY[@]} -eq 0 ]; then
+    FIELDS_ARRAY+=("String:name")
+fi
+
+# 1.6 Generate Entity if missing
 if [ ! -f "$ENTITY_FILE" ]; then
     echo "Entity $ENTITY_NAME not found. Generating default architecture-compliant entity..."
     cat <<JAVA > "$ENTITY_FILE"
@@ -176,24 +197,48 @@ public class ${ENTITY_CAP}Facade extends AbstractFacade<${ENTITY_CAP}> {
 JAVA
 
 # 3. Generate Filter Content
-cat <<JAVA > "$JAVA_DIR/view/filter/${ENTITY_CAP}Filter.java"
-package ${BASE_PACKAGE}.view.filter;
-
-import id.my.mdn.kupu.core.base.view.annotation.Bookmark;
-import id.my.mdn.kupu.core.base.view.widget.FilterContent;
-import jakarta.enterprise.context.Dependent;
-import java.io.Serializable;
-
-@Dependent
-public class ${ENTITY_CAP}Filter extends FilterContent implements Serializable {
+{
+    echo "package ${BASE_PACKAGE}.view.filter;"
+    echo ""
+    # Collect unique imports
+    # If a type is an entity (exists in its package) we might need an import
+    # For now, let's keep it simple and just generate the fields
+    echo "import id.my.mdn.kupu.core.base.view.annotation.Bookmark;"
+    echo "import id.my.mdn.kupu.core.base.view.widget.FilterContent;"
+    echo "import jakarta.enterprise.context.Dependent;"
+    echo "import java.io.Serializable;"
     
-    @Bookmark(name = "name")
-    private String name;
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-}
-JAVA
+    # Try to find imports for custom types by searching in the project
+    for field in "${FIELDS_ARRAY[@]}"; do
+        TYPE="${field%%:*}"
+        # If type is not primitive/common, try to find its package
+        if [[ ! "$TYPE" =~ ^(String|Long|Integer|Double|Boolean|List|Map)$ ]]; then
+            IMPORT=$(find src/main/java -name "${TYPE}.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${TYPE}';/')
+            if [ -n "$IMPORT" ]; then echo "$IMPORT"; fi
+        fi
+    done | sort -u
+    
+    echo ""
+    echo "@Dependent"
+    echo "public class ${ENTITY_CAP}Filter extends FilterContent implements Serializable {"
+    echo "    "
+    for field in "${FIELDS_ARRAY[@]}"; do
+        TYPE="${field%%:*}"
+        NAME="${field#*:}"
+        echo "    @Bookmark(name = \"$NAME\")"
+        echo "    private $TYPE $NAME;"
+    done
+    echo ""
+    for field in "${FIELDS_ARRAY[@]}"; do
+        TYPE="${field%%:*}"
+        NAME="${field#*:}"
+        # Capitalize the first letter of the name for getter/setter
+        CAP_NAME=$(echo "$NAME" | sed -r 's/(^.)/\U\1/')
+        echo "    public $TYPE get${CAP_NAME}() { return $NAME; }"
+        echo "    public void set${CAP_NAME}($TYPE $NAME) { this.$NAME = $NAME; }"
+    done
+    echo "}"
+} > "$JAVA_DIR/view/filter/${ENTITY_CAP}Filter.java"
 
 # 4. Generate List Bean
 cat <<JAVA > "$JAVA_DIR/view/list/${ENTITY_CAP}List.java"
@@ -505,11 +550,15 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/admin/${ENTITY_FILE_BASE}editor.
             <div class="col-12 md:col-6 md:col-offset-3">
                 <ui:decorate template="/WEB-INF/components/core/base/formlet.xhtml">
                     <ui:define name="fields">
-                        <div class="form-field">
-                            <p:outputLabel for="name" value="Name" />
-                            <p:inputText id="name" value="#{viewPage.entity.name}" class="block w-full" />
-                            <p:message for="name" />
-                        </div>
+$(for field in "${FIELDS_ARRAY[@]}"; do
+    NAME="${field#*:}"
+    CAP_NAME=$(echo "$NAME" | sed 's/./\U&/')
+    echo "                        <div class=\"form-field\">"
+    echo "                            <p:outputLabel for=\"$NAME\" value=\"$CAP_NAME\" />"
+    echo "                            <p:inputText id=\"$NAME\" value=\"#{viewPage.entity.$NAME}\" class=\"block w-full\" />"
+    echo "                            <p:message for=\"$NAME\" />"
+    echo "                        </div>"
+done)
                     </ui:define>
                 </ui:decorate>
             </div>
@@ -528,9 +577,13 @@ cat <<XHTML > "$COMP_DIR/list/${ENTITY_FILE_BASE}list.xhtml"
 
     <ui:decorate template="/WEB-INF/components/core/base/table.xhtml">
         <ui:define name="columns">
-            <p:column headerText="Name">
-                <h:outputText value="#{data.name}" />
-            </p:column>
+$(for field in "${FIELDS_ARRAY[@]}"; do
+    NAME="${field#*:}"
+    CAP_NAME=$(echo "$NAME" | sed 's/./\U&/')
+    echo "            <p:column headerText=\"$CAP_NAME\">"
+    echo "                <h:outputText value=\"#{data.$NAME}\" />"
+    echo "            </p:column>"
+done)
         </ui:define>
     </ui:decorate>
 
@@ -543,10 +596,14 @@ cat <<XHTML > "$COMP_DIR/filter/${ENTITY_FILE_BASE}-filterui.xhtml"
                 xmlns:ui="jakarta.faces.facelets" 
                 xmlns:p="primefaces">
 
-    <div class="filter-field">
-        <p:outputLabel for="name" value="Name" />
-        <p:inputText id="name" value="#{filter.content.name}" />
-    </div>
+$(for field in "${FIELDS_ARRAY[@]}"; do
+    NAME="${field#*:}"
+    CAP_NAME=$(echo "$NAME" | sed 's/./\U&/')
+    echo "    <div class=\"filter-field\">"
+    echo "        <p:outputLabel for=\"$NAME\" value=\"$CAP_NAME\" />"
+    echo "        <p:inputText id=\"$NAME\" value=\"#{filter.content.$NAME}\" />"
+    echo "    </div>"
+done)
 
 </ui:composition>
 XHTML
@@ -557,7 +614,18 @@ cat <<XHTML > "$COMP_DIR/filter/meta/${ENTITY_FILE_BASE}-filterui.xhtml"
                 xmlns:ui="jakarta.faces.facelets" 
                 xmlns:f="jakarta.faces.core">
 
-    <f:viewParam name="name" value="#{filter.content.name}" converter="QueryStringConverter" transient="true" />
+$(for field in "${FIELDS_ARRAY[@]}"; do
+    TYPE="${field%%:*}"
+    NAME="${field#*:}"
+    CONVERTER="QueryStringConverter"
+    if [[ "$TYPE" == "Long" ]]; then CONVERTER="LongConverter"; fi
+    if [[ "$TYPE" == "Integer" ]]; then CONVERTER="IntegerConverter"; fi
+    # For custom entities, use ${Type}Converter
+    if [[ ! "$TYPE" =~ ^(String|Long|Integer|Double|Boolean)$ ]]; then
+        CONVERTER="${TYPE}Converter"
+    fi
+    echo "    <f:viewParam name=\"$NAME\" value=\"#{filter.content.$NAME}\" converter=\"$CONVERTER\" transient=\"true\" />"
+done)
 
 </ui:composition>
 XHTML
