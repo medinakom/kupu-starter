@@ -65,6 +65,14 @@ case $PARTY_TYPE in
         ;;
 esac
 
+# 1.0 Get Table Prefix
+TABLE_PREFIX=""
+CONFIG_FILE="$RES_DIR/.generator-config"
+if [ -f "$CONFIG_FILE" ]; then
+    TABLE_PREFIX=$(grep "^TABLE_PREFIX=" "$CONFIG_FILE" | cut -d'=' -f2)
+fi
+TABLE_PREFIX=${TABLE_PREFIX:-$(echo "$MODULE_NAME" | tr '[:lower:]' '[:upper:]')}
+
 # 1.1 Discover Existing Entity
 ENTITY_FILE="$JAVA_DIR/entity/${ROLE_CAP}.java"
 if [ ! -f "$ENTITY_FILE" ]; then
@@ -110,7 +118,10 @@ if [ -f "$ENTITY_FILE" ]; then
     # Check @Table
     if ! grep -q "@Table" "$ENTITY_FILE"; then
         echo "  - Missing @Table. Injecting..."
-        sed -i "/@Entity/a @Table(name = \"\${TABLE_PREFIX}_${ROLE_CAP^^}\")" "$ENTITY_FILE"
+        sed -i "/@Entity/a @Table(name = \"${TABLE_PREFIX}_${ROLE_CAP^^}\")" "$ENTITY_FILE"
+    elif ! grep -q "@Table(name = \"${TABLE_PREFIX}_${ROLE_CAP^^}\")" "$ENTITY_FILE"; then
+        echo "  - @Table name mismatch. Updating..."
+        sed -i "s/@Table(name = \".*\")/@Table(name = \"${TABLE_PREFIX}_${ROLE_CAP^^}\")/" "$ENTITY_FILE"
     fi
     
     # Check Serializable
@@ -179,7 +190,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 @Entity
-@Table(name = "\${TABLE_PREFIX}_${ROLE_CAP^^}")
+@Table(name = "${TABLE_PREFIX}_${ROLE_CAP^^}")
 public class ${ROLE_CAP} extends ${BASE_ENTITY} implements Serializable {
 
     private static final long serialVersionUID = 1L;
