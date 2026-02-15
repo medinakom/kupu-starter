@@ -1,0 +1,39 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" template="/WEB-INF/templates/page.xhtml"
+    xmlns:h="jakarta.faces.html" xmlns:f="jakarta.faces.core" xmlns:ui="jakarta.faces.facelets" xmlns:p="primefaces">
+
+    <f:metadata>
+        <ui:param name="title" value="Customer" />
+
+        <ui:param name="viewPage" value="#{customerPage}" />
+        <ui:include src="/WEB-INF/components/core/base/meta/page.xhtml" />
+
+        <ui:param name="dataView" value="#{viewPage.dataView}" />
+        <ui:param name="contentId" value=":data-frm:#{dataView.name}" />
+        <ui:param name="notool" value="true" />
+
+        <ui:param name="filter" value="#{dataView.filter}" />
+        <ui:param name="filterType" value="overlay" />
+        <ui:param name="filterUi" value="/WEB-INF/components/app/pelanggan/filter/customer-filterui.xhtml" />
+        <ui:include src="/WEB-INF/components/app/pelanggan/filter/meta/customer-filterui.xhtml" />
+
+        <ui:param name="sorter" value="#{dataView.sorter}" />
+        <ui:include src="/WEB-INF/components/core/base/meta/sorter.xhtml" />
+
+        <ui:param name="pager" value="#{dataView.pager}" />
+        <ui:include src="/WEB-INF/components/core/base/meta/pager.xhtml" />
+
+        <f:viewParam name="s" value="#{dataView.selectionsInternal}" converter="CustomerListConverter"
+            transient="true" />
+    </f:metadata>
+
+    <ui:define name="module-menu">
+        <ui:include src="/WEB-INF/components/app/pelanggan/module-menu.xhtml" />
+    </ui:define>
+
+    <ui:define name="content">
+        <h:form id="data-frm" class="flex-grow-1 flex align-items-stretch">
+            <ui:include src="/WEB-INF/components/app/pelanggan/list/customerlist.xhtml" />
+        </h:form>
+    </ui:define>
+
+</ui:composition>

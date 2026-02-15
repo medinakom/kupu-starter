@@ -1,0 +1,11 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" 
+                xmlns:ui="jakarta.faces.facelets" 
+                xmlns:f="jakarta.faces.core">
+
+    <f:viewParam name="id" value="#{filter.content.id}" converter="LongConverter" transient="true" />
+    <f:viewParam name="name" value="#{filter.content.name}" converter="QueryStringConverter" transient="true" />
+    <f:viewParam name="tariffCategory" value="#{filter.content.tariffCategory}" converter="TariffCategoryConverter" transient="true" />
+    <f:viewParam name="rt" value="#{filter.content.rt}" converter="QueryStringConverter" transient="true" />
+    <f:viewParam name="rw" value="#{filter.content.rw}" converter="QueryStringConverter" transient="true" />
+
+</ui:composition>

@@ -1,0 +1,60 @@
+{
+    "acls": [
+        {
+            "acl": {
+                "name": "pelanggan.tariffCategory.create",
+                "description": "create TariffCategory"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.tariffCategory.update",
+                "description": "update TariffCategory"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.tariffCategory.delete",
+                "description": "delete TariffCategory"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.tariff.create",
+                "description": "create Tariff"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.tariff.update",
+                "description": "update Tariff"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.tariff.delete",
+                "description": "delete Tariff"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.customer.create",
+                "description": "create Customer"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.customer.update",
+                "description": "update Customer"
+            }
+        },
+        {
+            "acl": {
+                "name": "pelanggan.customer.delete",
+                "description": "delete Customer"
+            }
+        }
+    ],
+    "groups": [],
+    "users": []
+}

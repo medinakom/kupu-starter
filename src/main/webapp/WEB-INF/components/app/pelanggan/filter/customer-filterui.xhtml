@@ -1,0 +1,26 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" 
+                xmlns:ui="jakarta.faces.facelets" 
+                xmlns:p="primefaces">
+
+    <div class="filter-field">
+        <p:outputLabel for="id" value="Id" />
+        <p:inputText id="id" value="#{filter.content.id}" />
+    </div>
+    <div class="filter-field">
+        <p:outputLabel for="name" value="Name" />
+        <p:inputText id="name" value="#{filter.content.name}" />
+    </div>
+    <div class="filter-field">
+        <p:outputLabel for="tariffCategory" value="TariffCategory" />
+        <p:inputText id="tariffCategory" value="#{filter.content.tariffCategory}" />
+    </div>
+    <div class="filter-field">
+        <p:outputLabel for="rt" value="Rt" />
+        <p:inputText id="rt" value="#{filter.content.rt}" />
+    </div>
+    <div class="filter-field">
+        <p:outputLabel for="rw" value="Rw" />
+        <p:inputText id="rw" value="#{filter.content.rw}" />
+    </div>
+
+</ui:composition>
