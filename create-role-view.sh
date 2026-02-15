@@ -214,6 +214,7 @@ import ${BASE_PACKAGE}.dao.${ROLE_CAP}Facade;
 import ${BASE_PACKAGE}.entity.${ROLE_CAP};
 import id.my.mdn.kupu.core.base.dao.AbstractFacade.DefaultChecker;
 import id.my.mdn.kupu.core.base.util.FilterTypes.FilterData;
+import id.my.mdn.kupu.core.base.util.Result;
 import id.my.mdn.kupu.core.base.view.widget.AbstractMutablePagedValueList;
 import id.my.mdn.kupu.core.base.view.widget.SorterData;
 import jakarta.enterprise.context.Dependent;
@@ -241,6 +242,21 @@ public class ${ROLE_CAP}List extends AbstractMutablePagedValueList<${ROLE_CAP}> 
     @Override
     protected long getItemsCountInternal(Map<String, Object> parameters, List<FilterData> filters, DefaultCount defaultCount, DefaultChecker defaultChecker) {
         return dao.countAll(parameters, filters, defaultCount.get(), defaultChecker);
+    }
+
+    @Override
+    protected Result<String> createInternal(${ROLE_CAP} entity) {
+        return dao.create(entity);
+    }
+
+    @Override
+    protected Result<String> editInternal(${ROLE_CAP} entity) {
+        return dao.edit(entity);
+    }
+
+    @Override
+    protected Result<String> deleteInternal(${ROLE_CAP} entity) {
+        return dao.remove(entity);
     }
 }
 JAVA
