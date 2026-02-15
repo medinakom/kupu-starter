@@ -31,8 +31,8 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-if [ -z "$SUB_MODULE" ] || [ -z "$ENTITY_NAME" ] || [ -z "$ENTITY_PKG" ]; then
-    echo "Usage: ./create-entity-view.sh <sub_module_name> <entity_name> <entity_package> [--no-acl]"
+if [ -z "$SUB_MODULE" ] || [ -z "$ENTITY_NAME" ]; then
+    echo "Usage: ./create-entity-view.sh <sub_module_name> <entity_name> [entity_package] [--no-acl]"
     exit 1
 fi
 
@@ -55,6 +55,21 @@ COMP_DIR="src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
 
 ENTITY_PKG_PATH=$(echo "$ENTITY_PKG" | tr . /)
 ENTITY_FILE="src/main/java/${ENTITY_PKG_PATH}/${ENTITY_CAP}.java"
+
+# 1.1 Discover Entity if package is missing or file not found
+if [ -z "$ENTITY_PKG" ] || [ ! -f "$ENTITY_FILE" ]; then
+    FOUND_ENTITY=$(find src/main/java -name "$MODULE_NAME" -type d -exec find {} -name "${ENTITY_CAP}.java" \; | head -n 1)
+    
+    if [ -n "$FOUND_ENTITY" ]; then
+        ENTITY_FILE="$FOUND_ENTITY"
+        ENTITY_PKG=$(grep "^package " "$ENTITY_FILE" | head -n 1 | sed 's/package \(.*\);/\1/')
+        echo "Found existing entity at $ENTITY_FILE ($ENTITY_PKG)"
+    elif [ -z "$ENTITY_PKG" ]; then
+        echo "Error: Entity $ENTITY_NAME not found in module $MODULE_NAME and no package specified."
+        echo "Usage: ./create-entity-view.sh <sub_module_name> <entity_name> <entity_package> [--no-acl]"
+        exit 1
+    fi
+fi
 
 mkdir -p "$(dirname "$ENTITY_FILE")"
 mkdir -p "$JAVA_DIR"/{dao,view/filter,view/list,view/admin,view/converter}
