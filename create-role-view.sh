@@ -347,7 +347,6 @@ cat <<XHTML > "$WEB_DIR/view/admin/${ROLE_LOWER}.xhtml"
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
                 xmlns:p="primefaces"
-                xmlns:k="jakarta.faces.composite/WEB-INF/components"
                 template="/WEB-INF/template/template.xhtml">
 
     <ui:define name="title">
@@ -356,7 +355,9 @@ cat <<XHTML > "$WEB_DIR/view/admin/${ROLE_LOWER}.xhtml"
 
     <ui:define name="content">
         <h:form id="${ROLE_LOWER}Form">
-            <k:app/${MODULE_NAME}/list/${ROLE_LOWER}list value="#{${ROLE_LOWER}Page.dataView}" />
+            <ui:include src="/WEB-INF/components/app/${MODULE_NAME}/list/${ROLE_LOWER}list.xhtml">
+                <ui:param name="value" value="#{${ROLE_LOWER}Page.dataView}" />
+            </ui:include>
         </h:form>
     </ui:define>
 
@@ -369,17 +370,11 @@ cat <<XHTML > "$COMP_DIR/list/${ROLE_LOWER}list.xhtml"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
-                xmlns:p="primefaces"
-                xmlns:composite="jakarta.faces.composite">
+                xmlns:p="primefaces">
 
-    <composite:interface>
-        <composite:attribute name="value" type="id.my.mdn.kupu.core.base.view.widget.IValueList" required="true" />
-    </composite:interface>
-
-    <composite:implementation>
-        <p:dataTable id="table" value="#{cc.attrs.value}" var="item"
-                     paginator="true" rows="10" lazy="true" selectionMode="single">
-            
+    <ui:decorate template="/WEB-INF/components/core/base/table.xhtml">
+        <ui:param name="value" value="#{value}" />
+        <ui:define name="columns">
             <p:column headerText="ID">
                 <h:outputText value="#{item.id}" />
             </p:column>
@@ -396,8 +391,8 @@ $(for field in "${FIELDS_ARRAY[@]}"; do
         echo "            </p:column>"
     fi
 done)            
-        </p:dataTable>
-    </composite:implementation>
+        </ui:define>
+    </ui:decorate>
 
 </ui:composition>
 XHTML
@@ -408,33 +403,26 @@ cat <<XHTML > "$COMP_DIR/editor/${ROLE_LOWER}editor.xhtml"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
-                xmlns:p="primefaces"
-                xmlns:composite="jakarta.faces.composite">
+                xmlns:p="primefaces">
 
-    <composite:interface>
-        <composite:attribute name="value" required="true" />
-    </composite:interface>
-
-    <composite:implementation>
-        <div class="grid w-full p-3">
-            <div class="col-12">
-               <h3>#{cc.attrs.value.id == null ? 'Create' : 'Edit'} ${ROLE_CAP}</h3>
-            </div>
+    <div class="grid w-full p-3">
+        <div class="col-12">
+           <h3>#{value.id == null ? 'Create' : 'Edit'} ${ROLE_CAP}</h3>
+        </div>
 $(for field in "${FIELDS_ARRAY[@]}"; do
     NAME="${field#*:}"
     if [[ "$NAME" != "id" && "$NAME" != "party" && "$NAME" != "person" && "$NAME" != "organization" ]]; then
         PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
-        echo "            <div class=\"col-12 md:col-6\">"
-        echo "                <div class=\"form-field\">"
-        echo "                    <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
-        echo "                    <p:inputText id=\"$NAME\" value=\"#{cc.attrs.value.$NAME}\" class=\"block w-full\" />"
-        echo "                    <p:message for=\"$NAME\" />"
-        echo "                </div>"
+        echo "        <div class=\"col-12 md:col-6\">"
+        echo "            <div class=\"form-field\">"
+        echo "                <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
+        echo "                <p:inputText id=\"$NAME\" value=\"#{value.$NAME}\" class=\"block w-full\" />"
+        echo "                <p:message for=\"$NAME\" />"
         echo "            </div>"
+        echo "        </div>"
     fi
 done)
-        </div>
-    </composite:implementation>
+    </div>
 
 </ui:composition>
 XHTML
@@ -445,42 +433,35 @@ cat <<XHTML > "$COMP_DIR/detail/${ROLE_LOWER}detail.xhtml"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
-                xmlns:p="primefaces"
-                xmlns:composite="jakarta.faces.composite">
+                xmlns:p="primefaces">
 
-    <composite:interface>
-        <composite:attribute name="value" required="true" />
-    </composite:interface>
-
-    <composite:implementation>
-        <div class="grid">
-            <div class="col-12 md:col-6">
-                <p:panel header="Party Information">
-                    <p:panelGrid columns="2" layout="grid" styleClass="ui-panelgrid-blank">
-                        <h:outputLabel value="ID:" />
-                        <h:outputText value="#{cc.attrs.value.party.id}" />
-                        
-                        <h:outputLabel value="Name:" />
-                        <h:outputText value="#{cc.attrs.value.party.name}" />
-                    </p:panelGrid>
-                </p:panel>
-            </div>
-            <div class="col-12 md:col-6">
-                <p:panel header="Role Information">
-                    <p:panelGrid columns="2" layout="grid" styleClass="ui-panelgrid-blank">
+    <div class="grid">
+        <div class="col-12 md:col-6">
+            <p:panel header="Party Information">
+                <p:panelGrid columns="2" layout="grid" styleClass="ui-panelgrid-blank">
+                    <h:outputLabel value="ID:" />
+                    <h:outputText value="#{value.party.id}" />
+                    
+                    <h:outputLabel value="Name:" />
+                    <h:outputText value="#{value.party.name}" />
+                </p:panelGrid>
+            </p:panel>
+        </div>
+        <div class="col-12 md:col-6">
+            <p:panel header="Role Information">
+                <p:panelGrid columns="2" layout="grid" styleClass="ui-panelgrid-blank">
 $(for field in "${FIELDS_ARRAY[@]}"; do
     NAME="${field#*:}"
     if [[ "$NAME" != "id" && "$NAME" != "party" && "$NAME" != "person" && "$NAME" != "organization" ]]; then
         PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
-        echo "                        <h:outputLabel value=\"$PRETTY_NAME:\" />"
-        echo "                        <h:outputText value=\"#{cc.attrs.value.$NAME}\" />"
+        echo "                    <h:outputLabel value=\"$PRETTY_NAME:\" />"
+        echo "                    <h:outputText value=\"#{value.$NAME}\" />"
     fi
 done)
-                    </p:panelGrid>
-                </p:panel>
-            </div>
+                </p:panelGrid>
+            </p:panel>
         </div>
-    </composite:implementation>
+    </div>
 
 </ui:composition>
 XHTML
