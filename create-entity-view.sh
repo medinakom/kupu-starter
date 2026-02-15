@@ -647,9 +647,9 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/admin/${ENTITY_FILE_BASE}editor.
                     <ui:define name="fields">
 $(for field in "${FIELDS_ARRAY[@]}"; do
     NAME="${field#*:}"
-    CAP_NAME=$(echo "$NAME" | sed 's/./\U&/')
+    PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
     echo "                        <div class=\"form-field\">"
-    echo "                            <p:outputLabel for=\"$NAME\" value=\"$CAP_NAME\" />"
+    echo "                            <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
     echo "                            <p:inputText id=\"$NAME\" value=\"#{viewPage.entity.$NAME}\" class=\"block w-full\" />"
     echo "                            <p:message for=\"$NAME\" />"
     echo "                        </div>"
@@ -674,8 +674,8 @@ cat <<XHTML > "$COMP_DIR/list/${ENTITY_FILE_BASE}list.xhtml"
         <ui:define name="columns">
 $(for field in "${FIELDS_ARRAY[@]}"; do
     NAME="${field#*:}"
-    CAP_NAME=$(echo "$NAME" | sed 's/./\U&/')
-    echo "            <p:column headerText=\"$CAP_NAME\">"
+    PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
+    echo "            <p:column headerText=\"$PRETTY_NAME\">"
     echo "                <h:outputText value=\"#{data.$NAME}\" />"
     echo "            </p:column>"
 done)
@@ -693,9 +693,9 @@ cat <<XHTML > "$COMP_DIR/filter/${ENTITY_FILE_BASE}-filterui.xhtml"
 
 $(for field in "${FIELDS_ARRAY[@]}"; do
     NAME="${field#*:}"
-    CAP_NAME=$(echo "$NAME" | sed 's/./\U&/')
+    PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
     echo "    <div class=\"filter-field\">"
-    echo "        <p:outputLabel for=\"$NAME\" value=\"$CAP_NAME\" />"
+    echo "        <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
     echo "        <p:inputText id=\"$NAME\" value=\"#{filter.content.$NAME}\" />"
     echo "    </div>"
 done)
