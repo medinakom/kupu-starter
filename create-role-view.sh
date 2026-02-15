@@ -11,14 +11,15 @@ else
     exit 1
 fi
 
+if [ "$#" -lt 3 ]; then
+    echo "Usage: ./create-role-view.sh <module_name> <role_name> <Person|Organization|General>"
+    echo "Example: ./create-role-view.sh pelanggan Merchant Organization"
+    exit 1
+fi
+
 MODULE_NAME=$1
 ROLE_NAME=$2
 PARTY_TYPE=$3
-
-if [ -z "$MODULE_NAME" ] || [ -z "$ROLE_NAME" ] || [ -z "$PARTY_TYPE" ]; then
-    echo "Usage: ./create-role-view.sh <module_name> <role_name> <Person|Organization|Both>"
-    exit 1
-fi
 
 ROLE_CAP=$(echo "$ROLE_NAME" | sed 's/./\U&/')
 ROLE_LOWER=$(echo "$ROLE_NAME" | sed 's/./\L&/')
@@ -52,15 +53,15 @@ case $PARTY_TYPE in
         EDITOR_FORM="OrganizationEditorForm"
         PARTY_IF="Organization"
         ;;
-    Both)
+    General)
         BASE_ENTITY="PartyRole"
         BASE_FACADE="AbstractPartyRoleFacade"
         PARTY_VAR="party"
-        EDITOR_FORM="PartyEditorForm" # Placeholder if doesn't exist
+        EDITOR_FORM="PartyEditorForm"
         PARTY_IF="Party"
         ;;
     *)
-        echo "Error: party_type must be Person, Organization, or Both"
+        echo "Error: party_type must be Person, Organization, or General"
         exit 1
         ;;
 esac
