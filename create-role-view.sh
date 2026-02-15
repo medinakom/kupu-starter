@@ -129,49 +129,6 @@ if [ -f "$ENTITY_FILE" ]; then
         echo "  - Missing Serializable. Injecting..."
         sed -i "s/class ${ROLE_CAP}/class ${ROLE_CAP} implements Serializable/" "$ENTITY_FILE"
     fi
-
-    # Standardize Methods (hashCode, equals, toString)
-    if command -v python3 &>/dev/null; then
-        python3 -c '
-import sys, re, textwrap
-path = sys.argv[1]
-name = sys.argv[2]
-
-with open(path, "r") as f: content = f.read()
-
-def replace_method(content, method_name, new_impl, signature_pattern):
-    match = re.search(r"^([ \t]*)" + signature_pattern, content, re.MULTILINE | re.DOTALL)
-    if not match:
-        indented = new_impl.replace(chr(10), chr(10) + "    ")
-        return re.sub(r"\}\s*$", "\n\n    " + indented + "\n}", content)
-    
-    start_idx = match.start()
-    indent = match.group(1)
-    indented_impl = textwrap.indent(new_impl, indent)
-    brace_start = content.find("{", start_idx)
-    if brace_start == -1: return content
-    
-    count = 1
-    i = brace_start + 1
-    while count > 0 and i < len(content):
-        if content[i] == "{": count += 1
-        elif content[i] == "}": count -= 1
-        i += 1
-    
-    return content[:start_idx] + indented_impl + content[i:]
-
-ts_impl = "@Override\npublic String toString() {\n    return id != null ? String.valueOf(id) : null;\n}"
-content = replace_method(content, "toString", ts_impl, r"(@Override\s+)?public String toString\s*\(")
-
-hc_impl = "@Override\npublic int hashCode() {\n    int hash = 7;\n    hash = 97 * hash + Objects.hashCode(this.id);\n    return hash;\n}"
-content = replace_method(content, "hashCode", hc_impl, r"(@Override\s+)?public int hashCode\s*\(")
-
-eq_impl = "@Override\npublic boolean equals(Object obj) {\n    if (this == obj) return true;\n    if (obj == null || getClass() != obj.getClass()) return false;\n    final " + name + " other = (" + name + ") obj;\n    return Objects.equals(this.id, other.id);\n}"
-content = replace_method(content, "equals", eq_impl, r"(@Override\s+)?public boolean equals\s*\(\s*Object ")
-
-with open(path, "w") as f: f.write(content)
-' "$ENTITY_FILE" "$ROLE_CAP"
-    fi
 fi
 
 # 1.5 Generate Entity if missing
@@ -216,26 +173,6 @@ public class ${ROLE_CAP} extends ${BASE_ENTITY} implements Serializable {
             party.getRoles().add(entity);
             return this;
         }
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = 7;
-        hash = 97 * hash + Objects.hashCode(this.id);
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        final ${ROLE_CAP} other = (${ROLE_CAP}) obj;
-        return Objects.equals(this.id, other.id);
-    }
-
-    @Override
-    public String toString() {
-        return id != null ? String.valueOf(id) : null;
     }
 }
 JAVA
