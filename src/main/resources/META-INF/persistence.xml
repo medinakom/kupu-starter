@@ -74,7 +74,7 @@
     <class>id.my.mdn.kupu.core.security.model.GroupAccessControlId</class>
     <class>id.my.mdn.kupu.core.security.model.GroupAccessControl</class>
     <class>id.my.mdn.kupu.core.security.model.SecurityToken</class>
-    <class>id.my.mdn.kupu.app.santri.entity.TahunPembelajaran</class>
+
 
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
