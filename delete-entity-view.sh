@@ -28,7 +28,7 @@ PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 # Define paths
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 VIEW_BASE_DIR="src/main/webapp/app/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
 
 FILES=(
     # Entity file
@@ -60,6 +60,33 @@ fi
 for f in "${FILES[@]}"; do
     [ -f "$f" ] && rm "$f" && echo "Deleted: $f"
 done
+
+# Remove from Navigator
+NAVIGATOR_FILE="$JAVA_DIR/view/${ENTITY_CAP}Navigator.java"
+if [ ! -f "$NAVIGATOR_FILE" ]; then
+    MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/./\U&/')
+    NAVIGATOR_FILE="$JAVA_DIR/view/${MODULE_CAP}Navigator.java"
+fi
+
+if [ -f "$NAVIGATOR_FILE" ]; then
+    if grep -q "case \"${ENTITY_CAP}\":" "$NAVIGATOR_FILE"; then
+        # Use simple grep to remove the line containing the case
+        sed -i "/case \"${ENTITY_CAP}\":/d" "$NAVIGATOR_FILE"
+        echo "Removed ${ENTITY_CAP} from $NAVIGATOR_FILE"
+        
+        # Clean up double blank lines that might have been left behind
+        sed -i '/^$/N;/^\n$/D' "$NAVIGATOR_FILE"
+    fi
+fi
+
+# Remove from Menu
+MENU_FILE="$COMP_DIR/module-menu.xhtml"
+if [ -f "$MENU_FILE" ]; then
+    if grep -q "value=\"${ENTITY_CAP}\"" "$MENU_FILE"; then
+        sed -i "/value=\"${ENTITY_CAP}\"/d" "$MENU_FILE"
+        echo "Removed ${ENTITY_CAP} from $MENU_FILE"
+    fi
+fi
 
 # Clean up ACL entries from security.json
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"

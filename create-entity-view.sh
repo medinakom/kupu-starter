@@ -51,7 +51,7 @@ JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
 VIEW_BASE_DIR="src/main/webapp"
 VIEW_NS_PATH="/app/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
 
 ENTITY_PKG_PATH=$(echo "$ENTITY_PKG" | tr . /)
 ENTITY_FILE="src/main/java/${ENTITY_PKG_PATH}/${ENTITY_CAP}.java"
@@ -99,7 +99,7 @@ if [ -f "$ENTITY_FILE" ]; then
                 FIELDS_ARRAY+=("$TYPE:$NAME")
             fi
         fi
-done < "$ENTITY_FILE"
+    done < "$ENTITY_FILE"
 fi
 
 # 1.5.1 Architectural Validation & Fixing (if entity exists)
@@ -585,7 +585,7 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/${ENTITY_FILE_BASE}.xhtml"
         <ui:param name="title" value="${ENTITY_NAME}" />
 
         <ui:param name="viewPage" value="#{${ENTITY_LOWER_CAMEL}Page}" />
-        <ui:include src="/WEB-INF/components/core/base/meta/page.xhtml" />
+        <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
 
         <ui:param name="dataView" value="#{viewPage.dataView}" />
         <ui:param name="contentId" value=":data-frm:#{dataView.name}" />
@@ -593,26 +593,26 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/${ENTITY_FILE_BASE}.xhtml"
 
         <ui:param name="filter" value="#{dataView.filter}" />
         <ui:param name="filterType" value="overlay" />
-        <ui:param name="filterUi" value="/WEB-INF/components/app/${MODULE_NAME}/filter/${ENTITY_FILE_BASE}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/components/app/${MODULE_NAME}/filter/meta/${ENTITY_FILE_BASE}-filterui.xhtml" />
+        <ui:param name="filterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${ENTITY_FILE_BASE}-filterui.xhtml" />
+        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${ENTITY_FILE_BASE}-filterui.xhtml" />
 
         <ui:param name="sorter" value="#{dataView.sorter}" />
-        <ui:include src="/WEB-INF/components/core/base/meta/sorter.xhtml" />
+        <ui:include src="/WEB-INF/resources/core/base/meta/sorter.xhtml" />
 
         <ui:param name="pager" value="#{dataView.pager}" />
-        <ui:include src="/WEB-INF/components/core/base/meta/pager.xhtml" />
+        <ui:include src="/WEB-INF/resources/core/base/meta/pager.xhtml" />
 
         <f:viewParam name="s" value="#{dataView.selectionsInternal}" converter="${ENTITY_CAP}ListConverter"
             transient="true" />
     </f:metadata>
 
     <ui:define name="module-menu">
-        <ui:include src="/WEB-INF/components/app/${MODULE_NAME}/module-menu.xhtml" />
+        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/module-menu.xhtml" />
     </ui:define>
 
     <ui:define name="content">
         <h:form id="data-frm" class="flex-grow-1 flex align-items-stretch">
-            <ui:include src="/WEB-INF/components/app/${MODULE_NAME}/list/${ENTITY_FILE_BASE}list.xhtml" />
+            <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${ENTITY_FILE_BASE}list.xhtml" />
         </h:form>
     </ui:define>
 
@@ -626,7 +626,7 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/admin/${ENTITY_FILE_BASE}editor.
 
     <f:metadata>
         <ui:param name="viewPage" value="#{${ENTITY_LOWER_CAMEL}EditorPage}" />
-        <ui:include src="/WEB-INF/components/core/base/meta/page.xhtml" />
+        <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
 
         <ui:param name="primaryTitle" value="Editor $(echo "${ENTITY_NAME}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')" />
 
@@ -643,7 +643,7 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/admin/${ENTITY_FILE_BASE}editor.
     <ui:define name="form">
         <div class="grid w-full p-3">
             <div class="col-12 md:col-6 md:col-offset-3">
-                <ui:decorate template="/WEB-INF/components/core/base/formlet.xhtml">
+                <ui:decorate template="/WEB-INF/resources/core/base/formlet.xhtml">
                     <ui:define name="fields">
 $(for field in "${FIELDS_ARRAY[@]}"; do
     NAME="${field#*:}"
@@ -670,7 +670,7 @@ cat <<XHTML > "$COMP_DIR/list/${ENTITY_FILE_BASE}list.xhtml"
                 xmlns:p="primefaces"
                 xmlns:h="jakarta.faces.html">
 
-    <ui:decorate template="/WEB-INF/components/core/base/table.xhtml">
+    <ui:decorate template="/WEB-INF/resources/core/base/table.xhtml">
         <ui:define name="columns">
 $(for field in "${FIELDS_ARRAY[@]}"; do
     NAME="${field#*:}"
@@ -725,7 +725,32 @@ done)
 </ui:composition>
 XHTML
 
-# 10. Update security.json if not skipped
+# 11. Register in Navigator
+NAVIGATOR_FILE="$JAVA_DIR/view/${ENTITY_CAP}Navigator.java"
+if [ ! -f "$NAVIGATOR_FILE" ]; then
+    MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/./\U&/')
+    NAVIGATOR_FILE="$JAVA_DIR/view/${MODULE_CAP}Navigator.java"
+fi
+
+if [ -f "$NAVIGATOR_FILE" ]; then
+    if ! grep -q "case \"${ENTITY_CAP}\":" "$NAVIGATOR_FILE"; then
+        # Use more flexible pattern to find switch statement start
+        sed -i "/switch.*(pageId).* {/a \            case \"${ENTITY_CAP}\": return ${BASE_PACKAGE}.view.${ENTITY_CAP}Page.class;" "$NAVIGATOR_FILE"
+        echo "Registered ${ENTITY_CAP} in $NAVIGATOR_FILE"
+    fi
+fi
+
+# 12. Register in Menu
+MENU_FILE="$COMP_DIR/module-menu.xhtml"
+if [ -f "$MENU_FILE" ]; then
+    if ! grep -q "value=\"${ENTITY_CAP}\"" "$MENU_FILE"; then
+        # Insert before the closing tag, ensuring correct formatting
+        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${ENTITY_CAP}\" icon=\"pi pi-file\" actionListener=\"#{${MODULE_CAP}Navigator.open('${ENTITY_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
+        echo "Registered ${ENTITY_CAP} in $MENU_FILE"
+    fi
+fi
+
+# 13. Update security.json if not skipped
 if [ "$SKIP_ACL" = false ]; then
     SEC_FILE="$RES_DIR/security.json"
     if [ ! -f "$SEC_FILE" ]; then

@@ -68,7 +68,7 @@ cat <<HTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/${XHTML_NAME}.xhtml"
     <f:metadata>
         <ui:param name="title" value="$PAGE_CAP" />
         <ui:param name="viewPage" value="#{${XHTML_NAME}Page}" />
-        <ui:include src="/WEB-INF/components/core/base/meta/page.xhtml"/>
+        <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml"/>
     </f:metadata>
     <ui:define name="content">
         <div class="card">

@@ -50,7 +50,7 @@ FULL_PKG="$BASE_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
 WEB_DIR="src/main/webapp/app/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
 
 echo "Creating directory structure for module: $MODULE_NAME..."
 mkdir -p "$JAVA_DIR"/{entity,dao,view/admin,view/converter,view/event,view/filter,view/list,service,api,event}

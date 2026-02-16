@@ -44,7 +44,7 @@ PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
 WEB_DIR="src/main/webapp/app/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
 
 # Check if module exists
 if [ ! -d "$JAVA_DIR" ]; then
