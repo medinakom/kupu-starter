@@ -1,8 +1,5 @@
-<ui:composition xmlns="http://www.w3.org/1999/xhtml"
-                template="/WEB-INF/templates/page.xhtml"
-                xmlns:ui="jakarta.faces.facelets"
-                xmlns:f="jakarta.faces.core"
-                xmlns:p="primefaces">  
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" template="/WEB-INF/templates/page.xhtml"
+    xmlns:ui="jakarta.faces.facelets" xmlns:f="jakarta.faces.core" xmlns:p="primefaces">
 
     <f:metadata>
         <ui:param name="title" value="#{config.getString('config.AppName')}" />
@@ -10,7 +7,7 @@
         <ui:param name="moduleInfos" value="#{theApp.visibleModuleInfos}" />
         <ui:param name="notool" value="true" />
         <ui:param name="nofooter" value="true" />
-        
+
         <f:viewAction action="#{loginPage.landUser}" />
     </f:metadata>
     <ui:define name="parent-nav" />
@@ -20,20 +17,23 @@
         <div class="flex flex-wrap justify-content-center gap-4 p-4">
             <ui:repeat value="#{moduleInfos}" var="info">
                 <div class="flex justify-content-center">
-                    <div class="flex flex-column surface-card align-items-center border-1 border-round border-300 shadow-3 hover:shadow-6" style="width: 128px">
+                    <div class="flex flex-column surface-card align-items-center border-1 border-round border-300 shadow-3 hover:shadow-6"
+                        style="width: 128px">
                         <div class="p-2">
-                            <p:graphicImage library="images" name="#{info.name}.svg"  width="120" height="120" />
+                            <p:graphicImage library="images" name="#{theApp.getModuleIcon(info.name)}" width="120"
+                                height="120" />
                         </div>
-                        <div class="flex justify-content-center align-items-center text-md font-medium text-center p-2" style="height: 32px">
+                        <div class="flex justify-content-center align-items-center text-md font-medium text-center p-2"
+                            style="height: 32px">
                             <p:link href="#{dashboard.itemPath(info)}" value="#{string[info.label]}" shape="rect"
-                                    class="no-underline text-primary" />
+                                class="no-underline text-primary" />
                         </div>
                     </div>
                 </div>
             </ui:repeat>
         </div>
     </ui:define>
-    
+
     <ui:define name="pager" />
 
 </ui:composition>

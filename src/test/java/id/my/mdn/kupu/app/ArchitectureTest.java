@@ -186,4 +186,14 @@ public class ArchitectureTest {
             .because(
                     "Entities must implement hashCode, equals, and toString for correct collection handling and logging");
 
+    @ArchTest
+    public static final ArchRule converters_should_be_singleton_or_dependent = classes().that()
+            .areAssignableTo(jakarta.faces.convert.Converter.class)
+            .and().doNotHaveModifier(JavaModifier.ABSTRACT)
+            .and().resideOutsideOfPackage("id.my.mdn.kupu.core..")
+            .should().beAnnotatedWith(jakarta.inject.Singleton.class)
+            .orShould().beAnnotatedWith(jakarta.enterprise.context.Dependent.class)
+            .allowEmptyShould(true)
+            .because("Converters should be Singleton to avoid unnecessary instantiation");
+
 }

@@ -112,5 +112,31 @@ cat <<EOF > "$COMP_DIR/module-menu.xhtml"
 </ui:composition>
 EOF
 
+# Index page
+# Index page
+cat <<EOF > "$WEB_DIR/index.xhtml"
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:p="primefaces"
+                template="/WEB-INF/templates/page.xhtml">
+
+    <f:metadata>
+        <ui:param name="title" value="$MODULE_TITLE Home" />
+        <ui:param name="notool" value="true" />
+    </f:metadata>
+
+    <ui:define name="module-menu">
+        <ui:include src="/WEB-INF/resources/app/$MODULE_NAME/module-menu.xhtml" />
+    </ui:define>
+
+    <ui:define name="content">
+        
+    </ui:define>
+
+</ui:composition>
+EOF
+
 chmod +x "$0"
 echo "Module '$MODULE_NAME' created successfully in $BASE_PACKAGE."

@@ -74,7 +74,14 @@
     <class>id.my.mdn.kupu.core.security.model.GroupAccessControlId</class>
     <class>id.my.mdn.kupu.core.security.model.GroupAccessControl</class>
     <class>id.my.mdn.kupu.core.security.model.SecurityToken</class>
-
+    <class>id.my.mdn.kupu.app.santri.entity.HalaqohPengajaran</class>
+    <class>id.my.mdn.kupu.app.santri.entity.KelompokPengasuhan</class>
+    <class>id.my.mdn.kupu.app.santri.entity.PelaksanaKepengasuhan</class>
+    <class>id.my.mdn.kupu.app.santri.entity.Pengajaran</class>
+    <class>id.my.mdn.kupu.app.santri.entity.Pengasuhan</class>
+    <class>id.my.mdn.kupu.app.santri.entity.Santri</class>
+    <class>id.my.mdn.kupu.app.santri.entity.TahunPembelajaran</class>
+    <class>id.my.mdn.kupu.app.santri.entity.Ustadz</class>
 
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>

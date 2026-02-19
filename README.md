@@ -40,4 +40,10 @@ Failure to follow these rules will break the build, preventing architectural ero
 
 ---
 
+
 *Powered by Kupu Framework*
+
+## 📚 Documentation
+
+For detailed instructions on using the automation scripts (creating modules, pages, entities, roles, etc.), please refer to the **[Scripts Manual](SCRIPTS.md)**.
+

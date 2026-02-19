@@ -11,18 +11,18 @@ else
     exit 1
 fi
 
-if [ "$#" -lt 3 ]; then
-    echo "Usage: ./create-role-view.sh <module_name> <role_name> <Person|Organization|General>"
-    echo "Example: ./create-role-view.sh pelanggan Merchant Organization"
+if [ "$#" -lt 2 ]; then
+    echo "Usage: ./create-person-role.sh <module_name> <role_name>"
+    echo "Example: ./create-person-role.sh santri Ustadz"
     exit 1
 fi
 
 MODULE_NAME=$1
 ROLE_NAME=$2
-PARTY_TYPE=$3
+PARTY_TYPE="Person"
 
 ROLE_CAP=$(echo "$ROLE_NAME" | sed 's/./\U&/')
-ROLE_LOWER=$(echo "$ROLE_NAME" | sed 's/./\L&/')
+ROLE_LOWER=$(echo "$ROLE_NAME" | tr '[:upper:]' '[:lower:]')
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 MODULE_BEAN=$(echo "$MODULE_NAME" | sed 's/./\L&/')
 

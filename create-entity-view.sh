@@ -745,7 +745,7 @@ MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
     if ! grep -q "value=\"${ENTITY_CAP}\"" "$MENU_FILE"; then
         # Insert before the closing tag, ensuring correct formatting
-        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${ENTITY_CAP}\" icon=\"pi pi-file\" actionListener=\"#{${MODULE_CAP}Navigator.open('${ENTITY_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
+        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${ENTITY_CAP}\" icon=\"pi pi-file\" actionListener=\"#{${MODULE_NAME}Navigator.open('${ENTITY_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
         echo "Registered ${ENTITY_CAP} in $MENU_FILE"
     fi
 fi

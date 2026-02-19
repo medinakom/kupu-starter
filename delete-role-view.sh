@@ -42,9 +42,11 @@ FILES=(
     "$JAVA_DIR/view/converter/${ROLE_CAP}Converter.java"
     "$JAVA_DIR/view/converter/${ROLE_CAP}ListConverter.java"
     "$JAVA_DIR/view/list/${ROLE_CAP}List.java"
+    "$JAVA_DIR/view/admin/${ROLE_CAP}DetailPage.java"
     # Web files
     "$WEB_DIR/view/${ROLE_LOWER}.xhtml"
     "$WEB_DIR/view/admin/${ROLE_LOWER}editor.xhtml"
+    "$WEB_DIR/view/admin/${ROLE_LOWER}detail.xhtml"
     # Component files
     "$COMP_DIR/list/${ROLE_LOWER}list.xhtml"
     "$COMP_DIR/editor/${ROLE_LOWER}editor.xhtml"
@@ -125,6 +127,24 @@ except Exception as e:
     print(f'Error updating security.json: {e}')
 " "$SEC_FILE" "$ROLE_LOWER" "$MODULE_NAME"
     fi
+fi
+
+
+
+# 5. Cleanup Empty Directories
+rmdir "$COMP_DIR/editor" 2>/dev/null
+rmdir "$COMP_DIR/detail" 2>/dev/null
+
+# 6. Cleanup Module Registration
+MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/./\U&/')
+MODULE_FILE="$JAVA_DIR/${MODULE_CAP}Module.java"
+if [ -f "$MODULE_FILE" ]; then
+    echo "Cleaning up Module Registration: $MODULE_FILE"
+    # Remove the createTypeIfNotExist line
+    sed -i "/partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class,/d" "$MODULE_FILE"
+    
+    # Remove the entity import
+    sed -i "/import ${BASE_PACKAGE}.entity.${ROLE_CAP};/d" "$MODULE_FILE"
 fi
 
 echo "Role '$ROLE_NAME' deletion complete."

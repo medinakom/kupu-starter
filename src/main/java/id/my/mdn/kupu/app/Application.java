@@ -33,4 +33,14 @@ public class Application extends AbstractApplication {
 //                .replace("in_id", "in");
     }
     
+    public String getModuleIcon(String moduleName) {
+        try {
+            jakarta.faces.context.FacesContext ctx = jakarta.faces.context.FacesContext.getCurrentInstance();
+            java.net.URL resource = ctx.getExternalContext().getResource("/WEB-INF/resources/images/" + moduleName + ".svg");
+            return resource != null ? moduleName + ".svg" : "nothumb.svg";
+        } catch (java.net.MalformedURLException ex) {
+            return "nothumb.svg";
+        }
+    }
+    
 }
