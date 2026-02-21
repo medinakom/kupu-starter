@@ -49,7 +49,7 @@ PKG_PATH=$(echo "$BASE_PACKAGE" | tr . /)
 FULL_PKG="$BASE_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_NAME"
 COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
 
 echo "Creating directory structure for module: $MODULE_NAME..."
@@ -92,7 +92,7 @@ public class ${MODULE_CAP}Navigator extends PageNavigator implements Serializabl
             default: return null;
         }
     }
-    @Override protected String getHome() { return "/app/$MODULE_NAME/index.xhtml"; }
+    @Override protected String getHome() { return "/$MODULE_NAME/index.xhtml"; }
 }
 EOF
 

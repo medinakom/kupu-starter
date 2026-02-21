@@ -24,7 +24,7 @@ PKG_PATH=$(echo "$BASE_PACKAGE" | tr . /)
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 VIEW_BASE_DIR="src/main/webapp"
 FULL_PKG="$BASE_PACKAGE.$MODULE_NAME"
-VIEW_NS_PATH="/app/$MODULE_NAME"
+VIEW_NS_PATH="/$MODULE_NAME"
 
 if [ ! -d "$JAVA_DIR" ]; then
     echo "Error: Sub-module '$MODULE_NAME' not found in src/main/java/$PKG_PATH/"

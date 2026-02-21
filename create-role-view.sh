@@ -12,7 +12,7 @@ else
 fi
 
 if [ "$#" -lt 3 ]; then
-    echo "Usage: ./create-role-view.sh <module_name> <role_name> <Person|Organization|General>"
+    echo "Usage: ./create-role-view.sh <module_name> <role_name> <Person|Organization>"
     echo "Example: ./create-role-view.sh pelanggan Merchant Organization"
     exit 1
 fi
@@ -21,8 +21,14 @@ MODULE_NAME=$1
 ROLE_NAME=$2
 PARTY_TYPE=$3
 
+if [[ "$PARTY_TYPE" != "Person" && "$PARTY_TYPE" != "Organization" ]]; then
+    echo "Error: party_type must be Person or Organization"
+    exit 1
+fi
+
 ROLE_CAP=$(echo "$ROLE_NAME" | sed 's/./\U&/')
 ROLE_LOWER=$(echo "$ROLE_NAME" | sed 's/./\L&/')
+ROLE_FILE_BASE=$(echo "$ROLE_NAME" | tr '[:upper:]' '[:lower:]')
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 MODULE_BEAN=$(echo "$MODULE_NAME" | sed 's/./\L&/')
 
@@ -30,7 +36,7 @@ MODULE_BEAN=$(echo "$MODULE_NAME" | sed 's/./\L&/')
 BASE_PACKAGE="$APP_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_NAME"
 COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
 
 mkdir -p "$JAVA_DIR"/{entity,dao,view/list,view/converter,view/filter,view/admin}
@@ -83,6 +89,12 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 TABLE_PREFIX=${TABLE_PREFIX:-$(echo "$MODULE_NAME" | tr '[:lower:]' '[:upper:]')}
 
+if command -v python3 &>/dev/null; then
+    TABLE_PREFIX_CAP=$(python3 -c "print('${TABLE_PREFIX}'.title())" 2>/dev/null || echo "${TABLE_PREFIX}")
+else
+    TABLE_PREFIX_CAP=$(echo "${TABLE_PREFIX}" | tr '[:upper:]' '[:lower:]' | sed 's/\(.\).*/\1/' | tr '[:lower:]' '[:upper:]')$(echo "${TABLE_PREFIX}" | tr '[:upper:]' '[:lower:]' | sed 's/.\(.*\)/\1/')
+fi
+
 # 1.1 Discover Existing Entity
 ENTITY_FILE="$JAVA_DIR/entity/${ROLE_CAP}.java"
 if [ ! -f "$ENTITY_FILE" ]; then
@@ -95,17 +107,51 @@ fi
 
 # 1.2 Discover Fields if entity exists
 FIELDS_ARRAY=()
+IS_HIERARCHICAL=false
+
 if [ -f "$ENTITY_FILE" ]; then
+    # Auto-detect hierarchical status early to include parent field if needed
+    if grep -q "HierarchicalEntity" "$ENTITY_FILE"; then
+        IS_HIERARCHICAL=true
+        echo "Auto-detected HierarchicalEntity from existing entity."
+    fi
+
     echo "Parsing fields from existing entity: $ROLE_CAP..."
+    HAS_MANY_TO_ONE=false
     while read -r line; do
+        if [[ $line == *"@ManyToOne"* ]]; then
+            HAS_MANY_TO_ONE=true
+        fi
         if [[ $line =~ private[[:space:]]+([A-Za-z0-9_<>]+)[[:space:]]+([a-z[A-Z0-9_]+)\; ]]; then
             TYPE="${BASH_REMATCH[1]}"
             NAME="${BASH_REMATCH[2]}"
-            if [[ "$NAME" != "serialVersionUID" && "$NAME" != "party" && "$NAME" != "person" && "$NAME" != "organization" ]]; then
-                FIELDS_ARRAY+=("$TYPE:$NAME")
+            
+            SHOULD_INCLUDE=false
+            if [[ "$NAME" != "serialVersionUID" && "$NAME" != "children" && "$NAME" != "party" && "$NAME" != "person" && "$NAME" != "organization" ]]; then
+                if [[ "$NAME" == "parent" ]]; then
+                    if [ "$IS_HIERARCHICAL" = true ]; then
+                        SHOULD_INCLUDE=true
+                    fi
+                else
+                    SHOULD_INCLUDE=true
+                fi
             fi
+
+            if [ "$SHOULD_INCLUDE" = true ]; then
+                if [ "$HAS_MANY_TO_ONE" = true ]; then
+                    FIELDS_ARRAY+=("$TYPE:$NAME:MTO")
+                else
+                    FIELDS_ARRAY+=("$TYPE:$NAME:STD")
+                fi
+            fi
+            HAS_MANY_TO_ONE=false
         fi
     done < "$ENTITY_FILE"
+fi
+
+LIST_SUFFIX="List"
+if [ "$IS_HIERARCHICAL" = true ]; then
+    LIST_SUFFIX="Tree"
 fi
 
 # 1.3 Architectural Validation & Fixing (if entity exists)
@@ -222,14 +268,16 @@ JAVA
     echo ""
     echo "import id.my.mdn.kupu.core.base.view.annotation.Bookmark;"
     echo "import id.my.mdn.kupu.core.base.view.widget.FilterContent;"
+    echo "import jakarta.annotation.PostConstruct;"
     echo "import jakarta.enterprise.context.Dependent;"
+    echo "import jakarta.inject.Inject;"
     echo "import java.io.Serializable;"
     echo "import java.time.LocalDate;"
     
     # Try to find imports for custom types
     for field in "${FIELDS_ARRAY[@]}"; do
-        TYPE="${field%%:*}"
-        if [[ ! "$TYPE" =~ ^(String|Long|Integer|Double|Boolean|List|Map|LocalDate)$ ]]; then
+        IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+        if [[ ! "$TYPE" =~ ^(String|Long|Integer|Double|Boolean|List|Map|LocalDate|LocalDateTime)$ ]]; then
             IMPORT=$(find src/main/java -name "${TYPE}.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${TYPE}';/')
             if [ -n "$IMPORT" ]; then echo "$IMPORT"; fi
         fi
@@ -239,21 +287,43 @@ JAVA
     echo "@Dependent"
     echo "public class ${ENTITY_CAP:-$ROLE_CAP}Filter extends FilterContent implements Serializable {"
     echo "    "
+    for field in "${FIELDS_ARRAY[@]}"; do
+        IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+        if [ "$MTO_FLAG" = "MTO" ]; then
+            echo "    @Inject"
+            echo "    private ${BASE_PACKAGE}.view.misc.${TYPE}LazyChooser ${NAME}FilterChooser;"
+            echo ""
+        fi
+    done
     echo "    @Bookmark(name = \"name\")"
     echo "    private String name;"
     for field in "${FIELDS_ARRAY[@]}"; do
-        TYPE="${field%%:*}"
-        NAME="${field#*:}"
+        IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
         echo "    @Bookmark(name = \"$NAME\")"
         echo "    private $TYPE $NAME;"
     done
     echo ""
+    echo "    @PostConstruct"
+    echo "    public void init() {"
+    for field in "${FIELDS_ARRAY[@]}"; do
+        IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+        if [ "$MTO_FLAG" = "MTO" ]; then
+            CAP_NAME=$(echo "$NAME" | sed -r 's/(^.)/\U\1/')
+            echo "        ${NAME}FilterChooser.setSaveListener((selection, ctx) -> set${CAP_NAME}(selection));"
+        fi
+    done
+    echo "    }"
+    echo ""
     echo "    public String getName() { return name; }"
     echo "    public void setName(String name) { this.name = name; }"
     for field in "${FIELDS_ARRAY[@]}"; do
-        TYPE="${field%%:*}"
-        NAME="${field#*:}"
+        IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
         CAP_NAME=$(echo "$NAME" | sed -r 's/(^.)/\U\1/')
+        if [ "$MTO_FLAG" = "MTO" ]; then
+            echo "    public ${BASE_PACKAGE}.view.misc.${TYPE}LazyChooser get${CAP_NAME}FilterChooser() {"
+            echo "        return ${NAME}FilterChooser;"
+            echo "    }"
+        fi
         echo "    public $TYPE get${CAP_NAME}() { return $NAME; }"
         echo "    public void set${CAP_NAME}($TYPE $NAME) { this.$NAME = $NAME; }"
     done
@@ -261,7 +331,15 @@ JAVA
 } > "$JAVA_DIR/view/filter/${ROLE_CAP}Filter.java"
 
 # 3. Generate List Bean
-cat <<JAVA > "$JAVA_DIR/view/list/${ROLE_CAP}List.java"
+if [ "$IS_HIERARCHICAL" = true ]; then
+    LIST_SUPERCLASS="AbstractMutableTree<${ROLE_CAP}>"
+    LIST_IMPORT="id.my.mdn.kupu.core.base.view.widget.AbstractMutableTree"
+else
+    LIST_SUPERCLASS="AbstractMutablePagedValueList<${ROLE_CAP}>"
+    LIST_IMPORT="id.my.mdn.kupu.core.base.view.widget.AbstractMutablePagedValueList"
+fi
+
+cat <<JAVA > "$JAVA_DIR/view/list/${ROLE_CAP}${LIST_SUFFIX}.java"
 package ${BASE_PACKAGE}.view.list;
 
 import ${BASE_PACKAGE}.dao.${ROLE_CAP}Facade;
@@ -270,7 +348,7 @@ import ${BASE_PACKAGE}.view.filter.${ROLE_CAP}Filter;
 import id.my.mdn.kupu.core.base.dao.AbstractFacade.DefaultChecker;
 import id.my.mdn.kupu.core.base.util.FilterTypes.FilterData;
 import id.my.mdn.kupu.core.base.util.Result;
-import id.my.mdn.kupu.core.base.view.widget.AbstractMutablePagedValueList;
+import ${LIST_IMPORT};
 import id.my.mdn.kupu.core.base.view.widget.AbstractPagedValueList.DefaultCount;
 import id.my.mdn.kupu.core.base.view.widget.AbstractValueList.DefaultList;
 import id.my.mdn.kupu.core.base.view.widget.SorterData;
@@ -281,7 +359,7 @@ import java.util.List;
 import java.util.Map;
 
 @Dependent
-public class ${ROLE_CAP}List extends AbstractMutablePagedValueList<${ROLE_CAP}> {
+public class ${ROLE_CAP}${LIST_SUFFIX} extends ${LIST_SUPERCLASS} {
 
     @Inject
     private ${ROLE_CAP}Facade dao;
@@ -289,7 +367,7 @@ public class ${ROLE_CAP}List extends AbstractMutablePagedValueList<${ROLE_CAP}> 
     @Inject
     private ${ROLE_CAP}Filter filterContent;
 
-    public ${ROLE_CAP}List() {
+    public ${ROLE_CAP}${LIST_SUFFIX}() {
         super(${ROLE_CAP}.class);
     }
 
@@ -298,10 +376,13 @@ public class ${ROLE_CAP}List extends AbstractMutablePagedValueList<${ROLE_CAP}> 
         filter.setContent(filterContent);
     }
 
-    @Override
+$(if [ "$IS_HIERARCHICAL" = true ]; then echo "    @Override
+    protected List<${ROLE_CAP}> getFetchedItemsInternal(Map<String, Object> parameters, List<FilterData> filters, List<SorterData> sorters, DefaultList<${ROLE_CAP}> defaultList, DefaultChecker defaultChecker) {
+        return dao.findAll(0, 0, parameters, filters, sorters, defaultList.get(), defaultChecker);
+    }"; else echo "    @Override
     protected List<${ROLE_CAP}> getPagedFetchedItemsInternal(int first, int pageSize, Map<String, Object> parameters, List<FilterData> filters, List<SorterData> sorters, DefaultList<${ROLE_CAP}> defaultList, DefaultChecker defaultChecker) {
         return dao.findAll(first, pageSize, parameters, filters, sorters, defaultList.get(), defaultChecker);
-    }
+    }"; fi)
 
     @Override
     protected long getItemsCountInternal(Map<String, Object> parameters, List<FilterData> filters, DefaultCount defaultCount, DefaultChecker defaultChecker) {
@@ -344,7 +425,7 @@ JAVA
 cat <<JAVA > "$JAVA_DIR/view/${ROLE_CAP}Page.java"
 package ${BASE_PACKAGE}.view;
 
-import ${BASE_PACKAGE}.view.list.${ROLE_CAP}List;
+import ${BASE_PACKAGE}.view.list.${ROLE_CAP}${LIST_SUFFIX};
 import ${BASE_PACKAGE}.view.admin.${ROLE_CAP}EditorPage;
 import ${BASE_PACKAGE}.view.admin.${ROLE_CAP}DetailPage;
 import id.my.mdn.kupu.core.base.view.Page;
@@ -364,7 +445,7 @@ public class ${ROLE_CAP}Page extends Page implements Serializable {
 
     @Inject
     @Bookmarked
-    private ${ROLE_CAP}List dataView;
+    private ${ROLE_CAP}${LIST_SUFFIX} dataView;
 
     @Override
     @PostConstruct
@@ -392,7 +473,7 @@ public class ${ROLE_CAP}Page extends Page implements Serializable {
         dataView.deleteSelected();
     }
 
-    public ${ROLE_CAP}List getDataView() {
+    public ${ROLE_CAP}${LIST_SUFFIX} getDataView() {
         return dataView;
     }
 }
@@ -412,6 +493,9 @@ if [ -n "$FORM_CLASS" ]; then
     echo "import id.my.mdn.kupu.core.party.entity.${PARTY_IF};"
     echo "import id.my.mdn.kupu.core.party.view.form.${EDITOR_FORM};"
 fi
+if [ "$IS_HIERARCHICAL" = true ]; then
+    echo "import ${BASE_PACKAGE}.view.misc.${ROLE_CAP}LazyChooser;"
+fi
 echo "import jakarta.annotation.PostConstruct;"
 echo "import jakarta.enterprise.context.ConversationScoped;"
 echo "import jakarta.inject.Inject;"
@@ -428,6 +512,10 @@ if [ -n "$FORM_CLASS" ]; then
     echo "    "
     echo "    @Inject @Form"
     echo "    private ${EDITOR_FORM} form;"
+fi
+if [ "$IS_HIERARCHICAL" = true ]; then
+    echo "    @Inject"
+    echo "    private ${ROLE_CAP}LazyChooser parentChooser;"
 fi
 echo ""
 echo "    @Override"
@@ -467,9 +555,123 @@ if [ -n "$FORM_CLASS" ]; then
     echo "        return form;"
     echo "    }"
 fi
+if [ "$IS_HIERARCHICAL" = true ]; then
+    echo "    public ${ROLE_CAP}LazyChooser getParentChooser() {"
+    echo "        return parentChooser;"
+    echo "    }"
+fi
 echo "}"
 } > "$JAVA_DIR/view/admin/${ROLE_CAP}EditorPage.java"
+# 4.6. Generate Misc Classes (Lazy List and Chooser)
+for field in "${FIELDS_ARRAY[@]}"; do
+    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [ "$MTO_FLAG" = "MTO" ]; then
+        # Find the package for the target entity
+        TYPE_PKG="id.my.mdn.kupu.core.base.entity"
+        FOUND_ENTITY=$(find src/main/java -name "${TYPE}.java" -exec grep -l "^package " {} \; | head -n 1)
+        if [ -n "$FOUND_ENTITY" ]; then
+            TYPE_PKG=$(grep "^package " "$FOUND_ENTITY" | sed 's/package \(.*\);/\1/')
+        fi
+        
+        # Generation block for TYPE LazyList
+        if [ ! -f "$JAVA_DIR/view/misc/${TYPE}LazyList.java" ]; then
+            mkdir -p "$JAVA_DIR/view/misc"
+            cat <<JAVA > "$JAVA_DIR/view/misc/${TYPE}LazyList.java"
+package ${BASE_PACKAGE}.view.misc;
 
+import ${APP_PACKAGE}.*.dao.${TYPE}Facade; // FIX IMPORT IF NEEDED
+import ${TYPE_PKG}.${TYPE};
+import ${APP_PACKAGE}.*.view.filter.${TYPE}Filter; // FIX IMPORT IF NEEDED
+import id.my.mdn.kupu.core.base.dao.AbstractFacade;
+import id.my.mdn.kupu.core.base.util.FilterTypes;
+import id.my.mdn.kupu.core.base.view.widget.AbstractLazyList;
+import id.my.mdn.kupu.core.base.view.widget.Filter;
+import id.my.mdn.kupu.core.base.view.widget.SorterData;
+import jakarta.enterprise.context.Dependent;
+import jakarta.inject.Inject;
+import java.util.List;
+import java.util.Map;
+
+@Dependent
+public class ${TYPE}LazyList extends AbstractLazyList<${TYPE}> {
+
+    @Inject
+    private ${TYPE}Facade dao;
+
+    @Inject
+    private ${TYPE}Filter filterContent;
+
+    public ${TYPE}LazyList() {
+        super(${TYPE}.class);
+        this.filter = new Filter(filterContent);
+    }
+
+    @Override
+    protected List<${TYPE}> findAllInternal(Integer startPosition, Integer maxResult, Map<String, Object> parameters, List<FilterTypes.FilterData> filters, List<SorterData> sorters, List<${TYPE}> defaultReturn, AbstractFacade.DefaultChecker defaultChecker) {
+        return dao.findAll(startPosition, maxResult,
+                parameters, filter.getValues(), getSorters(),
+                defaultList.get(), defaultChecker);
+    }
+
+    @Override
+    protected Long countAllInternal(Map<String, Object> parameters, List<FilterTypes.FilterData> filters, Long defaultCount, AbstractFacade.DefaultChecker defaultChecker) {
+        return dao.countAll(parameters, filter.getValues(), defaultCount, defaultChecker);
+    }
+}
+JAVA
+        
+            # Patch wildcard imports
+            TYPE_FACADE_IMPORT=$(find src/main/java -name "${TYPE}Facade.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${TYPE}Facade';/')
+            if [ -n "$TYPE_FACADE_IMPORT" ]; then sed -i "s|import ${APP_PACKAGE}.*.dao.${TYPE}Facade; // FIX IMPORT IF NEEDED|$TYPE_FACADE_IMPORT|" "$JAVA_DIR/view/misc/${TYPE}LazyList.java"; fi
+            
+            TYPE_FILTER_IMPORT=$(find src/main/java -name "${TYPE}Filter.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${TYPE}Filter';/')
+            if [ -n "$TYPE_FILTER_IMPORT" ]; then sed -i "s|import ${APP_PACKAGE}.*.view.filter.${TYPE}Filter; // FIX IMPORT IF NEEDED|$TYPE_FILTER_IMPORT|" "$JAVA_DIR/view/misc/${TYPE}LazyList.java"; fi
+        fi
+        
+        # Generation block for TYPE LazyChooser
+        if [ ! -f "$JAVA_DIR/view/misc/${TYPE}LazyChooser.java" ]; then
+            cat <<JAVA > "$JAVA_DIR/view/misc/${TYPE}LazyChooser.java"
+package ${BASE_PACKAGE}.view.misc;
+
+import ${TYPE_PKG}.${TYPE};
+import id.my.mdn.kupu.core.base.util.FilterTypes.FilterData;
+import id.my.mdn.kupu.core.base.view.widget.InlineEditor;
+import jakarta.enterprise.context.Dependent;
+import jakarta.inject.Inject;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+@Dependent
+public class ${TYPE}LazyChooser extends InlineEditor<${TYPE}> implements Serializable {
+
+    @Inject
+    private ${TYPE}${LIST_SUFFIX} list;
+
+    private String searchTerm;
+
+    @Override
+    protected void reload(Context ctx) {   
+        list.getFilter().setStaticFilter(this::getFilters);    
+        list.init();
+    }
+
+    private List<FilterData> getFilters() {
+        List<FilterData> filters = new ArrayList<>();
+        if (searchTerm != null && !searchTerm.isBlank()) {
+            filters.add(FilterData.by("name", searchTerm));
+        }
+        return filters;
+    }
+
+    public ${TYPE}${LIST_SUFFIX} getList() { return list; }
+    public String getSearchTerm() { return searchTerm; }
+    public void setSearchTerm(String searchTerm) { this.searchTerm = searchTerm; }
+}
+JAVA
+        fi
+    fi
+done
 
 # 4.5 Generate Converters
 cat <<JAVA > "$JAVA_DIR/view/converter/${ROLE_CAP}Converter.java"
@@ -538,7 +740,7 @@ public class ${ROLE_CAP}ListConverter extends SelectionsConverter<${ROLE_CAP}> {
 JAVA
 
 # 5. Generate Admin Page XHTML
-cat <<XHTML > "$WEB_DIR/view/${ROLE_LOWER}.xhtml"
+cat <<XHTML > "$WEB_DIR/view/${ROLE_FILE_BASE}.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:h="jakarta.faces.html"
@@ -558,8 +760,8 @@ cat <<XHTML > "$WEB_DIR/view/${ROLE_LOWER}.xhtml"
 
         <ui:param name="filter" value="#{dataView.filter}" />
         <ui:param name="filterType" value="overlay" />
-        <ui:param name="filterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${ROLE_LOWER}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${ROLE_LOWER}-filterui.xhtml" />
+        <ui:param name="filterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${ROLE_FILE_BASE}-filterui.xhtml" />
+        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${ROLE_FILE_BASE}-filterui.xhtml" />
 
         <ui:param name="sorter" value="#{dataView.sorter}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/sorter.xhtml" />
@@ -577,7 +779,7 @@ cat <<XHTML > "$WEB_DIR/view/${ROLE_LOWER}.xhtml"
 
     <ui:define name="content">
         <h:form id="data-frm" class="flex-grow-1 flex align-items-stretch">
-            <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${ROLE_LOWER}list.xhtml">
+            <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${ROLE_FILE_BASE}list.xhtml">
                 <ui:param name="dataView" value="#{viewPage.dataView}" />
             </ui:include>
         </h:form>
@@ -594,6 +796,9 @@ echo "                xmlns:ui=\"jakarta.faces.facelets\""
 echo "                xmlns:f=\"jakarta.faces.core\""
 echo "                xmlns:h=\"jakarta.faces.html\""
 echo "                xmlns:p=\"primefaces\""
+if [ "$IS_HIERARCHICAL" = true ]; then
+    echo "                xmlns:k=\"http://xmlns.jcp.org/jsf/composite/kupu\""
+fi
 echo "                template=\"/WEB-INF/templates/editor-page.xhtml\">"
 echo ""
 echo "    <f:metadata>"
@@ -624,15 +829,23 @@ if [ -n "$FORM_CLASS" ]; then
          echo "                <ui:param name=\"editor\" value=\"#{viewPage.form}\" />"
         echo "            </ui:decorate>"
     fi
-else
-    # Default simple form generation if not person/org
-    echo "            <!-- Generic Fields -->"
+fi
+
+# Generate Role-specific custom fields (like 'parent' or extra attributes)
+if [ ${#FIELDS_ARRAY[@]} -gt 0 ]; then
+    echo "            <!-- Role-Specific Fields -->"
     for field in "${FIELDS_ARRAY[@]}"; do
-        NAME="${field#*:}"
+        IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
         PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
         echo "            <div class=\"col-12 md:col-6 field\">"
         echo "                <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
-        echo "                <p:inputText id=\"$NAME\" value=\"#{viewPage.entity.$NAME}\" styleClass=\"w-full\" />"
+        if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then
+            echo "                <k:lazySelector id=\"$NAME\""
+            echo "                                value=\"#{viewPage.entity.$NAME ne null ? viewPage.entity.$NAME.party.name : ''}\""
+            echo "                                selector=\"${ROLE_CAP}Selector\" update=\"#{component.clientId}\" required=\"true\" />"
+        else
+            echo "                <p:inputText id=\"$NAME\" value=\"#{viewPage.entity.$NAME}\" styleClass=\"w-full\" />"
+        fi
         echo "            </div>"
     done
 fi
@@ -641,8 +854,42 @@ echo "        </div>"
 echo ""
 echo "    </ui:define>"
 echo ""
+
+if [ "$IS_HIERARCHICAL" = true ]; then
+    echo "    <ui:define name=\"util\">"
+    echo "        <h:form>"
+    echo "            <k:selectorDialog selector=\"${ROLE_CAP}Selector\" widgetVar=\"parentSelector\" chooser=\"#{viewPage.parentChooser}\""
+    echo "                              styleClass=\"w-5\">"
+    echo "                <p:dataTable var=\"data\" value=\"#{viewPage.parentChooser.list.model}\" selectionMode=\"single\""
+    echo "                             selection=\"#{viewPage.parentChooser.selected}\" scrollRows=\"10\" scrollable=\"true\" liveScroll=\"true\""
+    echo "                             scrollHeight=\"200\">"
+    echo ""
+    echo "                    <p:ajax event=\"rowSelect\" listener=\"#{viewPage.parentChooser.onSave}\""
+    echo "                            oncomplete=\"PF('parentSelector').hide()\" />"
+    echo ""
+    echo "                    <f:facet name=\"header\">"
+    echo "                        <span class=\"ui-input-icon-left w-full\">"
+    echo "                            <i class=\"pi pi-search\" />"
+    echo "                            <p:inputText value=\"#{viewPage.parentChooser.searchTerm}\" immediate=\"true\" class=\"w-full\">"
+    echo "                                <p:ajax event=\"keyup\" update=\"@parent:@parent\" delay=\"300\" />"
+    echo "                            </p:inputText>"
+    echo "                        </span>"
+    echo "                    </f:facet>"
+    echo "                    <p:column headerText=\"Id\">"
+    echo "                        <h:outputText value=\"#{data.id}\" />"
+    echo "                    </p:column>"
+    echo "                    <p:column headerText=\"Name\">"
+    echo "                        <h:outputText value=\"#{data.party.name}\" />"
+    echo "                    </p:column>"
+    echo "                </p:dataTable>"
+    echo "            </k:selectorDialog>"
+    echo "        </h:form>"
+    echo "    </ui:define>"
+    echo ""
+fi
+
 echo "</ui:composition>"
-} > "$WEB_DIR/view/admin/${ROLE_LOWER}editor.xhtml"
+} > "$WEB_DIR/view/admin/${ROLE_FILE_BASE}editor.xhtml"
 
 # 5.6 Generate Admin Detail Page XHTML
 {
@@ -710,7 +957,7 @@ echo "    </ui:define>"
 echo ""
 echo "    <ui:define name=\"pager\" />"
 echo "</ui:composition>"
-} > "$WEB_DIR/view/admin/${ROLE_LOWER}detail.xhtml"
+} > "$WEB_DIR/view/admin/${ROLE_FILE_BASE}detail.xhtml"
 
 # 5.7 Generate Detail Page Controller
 if [ -n "$FORM_CLASS" ]; then
@@ -778,7 +1025,7 @@ JAVA
 fi
 
 # 6. Generate List Component XHTML
-cat <<XHTML > "$COMP_DIR/list/${ROLE_LOWER}list.xhtml"
+cat <<XHTML > "$COMP_DIR/list/${ROLE_FILE_BASE}list.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:h="jakarta.faces.html"
@@ -795,10 +1042,14 @@ cat <<XHTML > "$COMP_DIR/list/${ROLE_LOWER}list.xhtml"
                 <h:outputText value="#{data.party.name}" />
             </p:column>
 $(for field in "${FIELDS_ARRAY[@]}"; do
-    NAME="${field#*:}"
+    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
     echo "            <p:column headerText=\"$PRETTY_NAME\">"
-    echo "                <h:outputText value=\"#{data.$NAME}\" />"
+    if [ "$MTO_FLAG" = "MTO" ]; then
+        echo "                <h:outputText value=\"#{data.$NAME ne null ? data.$NAME.party.name : ''}\" />"
+    else
+        echo "                <h:outputText value=\"#{data.$NAME}\" />"
+    fi
     echo "            </p:column>"
 done)            
         </ui:define>
@@ -808,9 +1059,12 @@ done)
 XHTML
 
 # 7. Generate Filter UI Component XHTML
-cat <<XHTML > "$COMP_DIR/filter/${ROLE_LOWER}-filterui.xhtml"
+cat <<XHTML > "$COMP_DIR/filter/${ROLE_FILE_BASE}-filterui.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml" 
                 xmlns:ui="jakarta.faces.facelets" 
+                xmlns:k="http://xmlns.jcp.org/jsf/composite/kupu"
+                xmlns:f="jakarta.faces.core"
+                xmlns:h="jakarta.faces.html"
                 xmlns:p="primefaces">
 
     <div class="filter-field">
@@ -819,11 +1073,40 @@ cat <<XHTML > "$COMP_DIR/filter/${ROLE_LOWER}-filterui.xhtml"
     </div>
 
 $(for field in "${FIELDS_ARRAY[@]}"; do
-    NAME="${field#*:}"
+    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
     echo "    <div class=\"filter-field\">"
     echo "        <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
-    echo "        <p:inputText id=\"$NAME\" value=\"#{filter.content.$NAME}\" />"
+    if [ "$MTO_FLAG" = "MTO" ]; then
+        echo "        <k:lazySelector id=\"$NAME\""
+        echo "                        value=\"#{filter.content.$NAME ne null ? filter.content.$NAME.party.name : ''}\""
+        echo "                        selector=\"${TYPE}Selector\" update=\"#{component.clientId}\" />"
+        echo "        <k:selectorDialog selector=\"${TYPE}Selector\" widgetVar=\"${NAME}Selector\" chooser=\"#{filter.content.${NAME}FilterChooser}\""
+        echo "                          styleClass=\"w-5\">"
+        echo "            <p:dataTable var=\"data\" value=\"#{filter.content.${NAME}FilterChooser.list.model}\" selectionMode=\"single\""
+        echo "                         selection=\"#{filter.content.${NAME}FilterChooser.selected}\" scrollRows=\"10\" scrollable=\"true\" liveScroll=\"true\""
+        echo "                         scrollHeight=\"200\">"
+        echo "                <p:ajax event=\"rowSelect\" listener=\"#{filter.content.${NAME}FilterChooser.onSave}\""
+        echo "                        oncomplete=\"PF('${NAME}Selector').hide();refreshContent();refreshCasing()\" />"
+        echo "                <f:facet name=\"header\">"
+        echo "                    <span class=\"ui-input-icon-left w-full\">"
+        echo "                        <i class=\"pi pi-search\" />"
+        echo "                        <p:inputText value=\"#{filter.content.${NAME}FilterChooser.searchTerm}\" immediate=\"true\" class=\"w-full\">"
+        echo "                            <p:ajax event=\"keyup\" update=\"@parent:@parent\" delay=\"300\" />"
+        echo "                        </p:inputText>"
+        echo "                    </span>"
+        echo "                </f:facet>"
+        echo "                <p:column headerText=\"Id\">"
+        echo "                    <h:outputText value=\"#{data.id}\" />"
+        echo "                </p:column>"
+        echo "                <p:column headerText=\"Name\">"
+        echo "                    <h:outputText value=\"#{data.party.name}\" />"
+        echo "                </p:column>"
+        echo "            </p:dataTable>"
+        echo "        </k:selectorDialog>"
+    else
+        echo "        <p:inputText id=\"$NAME\" value=\"#{filter.content.$NAME}\" />"
+    fi
     echo "    </div>"
 done)
 
@@ -831,7 +1114,7 @@ done)
 XHTML
 
 # 8. Generate Filter Meta Component XHTML
-cat <<XHTML > "$COMP_DIR/filter/meta/${ROLE_LOWER}-filterui.xhtml"
+cat <<XHTML > "$COMP_DIR/filter/meta/${ROLE_FILE_BASE}-filterui.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml" 
                 xmlns:ui="jakarta.faces.facelets" 
                 xmlns:f="jakarta.faces.core">
@@ -839,8 +1122,7 @@ cat <<XHTML > "$COMP_DIR/filter/meta/${ROLE_LOWER}-filterui.xhtml"
     <f:viewParam name="name" value="#{filter.content.name}" converter="QueryStringConverter" transient="true" />
 
 $(for field in "${FIELDS_ARRAY[@]}"; do
-    TYPE="${field%%:*}"
-    NAME="${field#*:}"
+    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     CONVERTER="QueryStringConverter"
     if [[ "$TYPE" == "Long" ]]; then CONVERTER="LongConverter"; fi
     if [[ "$TYPE" == "Integer" ]]; then CONVERTER="IntegerConverter"; fi
@@ -896,9 +1178,12 @@ if [ -f "$MODULE_FILE" ]; then
     fi
 
     # Ensure postInit method exists
-    if ! grep -q "protected void postInit()" "$MODULE_FILE"; then
+    if grep -q "protected void postInit().*{}" "$MODULE_FILE"; then
+        # Replace empty one-liner postInit() {} with a fully formed block
+        sed -i "s/.*protected void postInit().*{}.*/    @Override\n    protected void postInit() {\n        partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class, \"${ROLE_CAP}\");\n    }/" "$MODULE_FILE"
+    elif ! grep -q "protected void postInit()" "$MODULE_FILE"; then
          # Insert postInit before the last closing brace
-         sed -i "$ d" "$MODULE_FILE"
+         sed -i "\$ d" "$MODULE_FILE"
          cat <<JAVA >> "$MODULE_FILE"
 
     @Override
@@ -910,7 +1195,7 @@ JAVA
     else
         # Add createTypeIfNotExist call to existing postInit
         if ! grep -q "createTypeIfNotExist(${ROLE_CAP}.class" "$MODULE_FILE"; then
-            sed -i "/protected void postInit().*{/a \        partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class, \"${ROLE_CAP}\");" "$MODULE_FILE"
+            sed -i "/protected void postInit().*{/a \\        partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class, \"${ROLE_CAP}\");" "$MODULE_FILE"
         fi
     fi
     echo "Registered ${ROLE_CAP} in $MODULE_FILE"

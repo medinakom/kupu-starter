@@ -38,7 +38,7 @@ PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 BASE_PACKAGE="$APP_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_NAME"
 COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
 
 mkdir -p "$JAVA_DIR"/{entity,dao,view/list,view/converter,view/filter,view/admin}
@@ -174,6 +174,12 @@ if [ -f "$CONFIG_FILE" ]; then
     TABLE_PREFIX=$(grep "^TABLE_PREFIX=" "$CONFIG_FILE" | cut -d'=' -f2)
 fi
 TABLE_PREFIX=${TABLE_PREFIX:-$(echo "$MODULE_NAME" | tr '[:lower:]' '[:upper:]')}
+
+if command -v python3 &>/dev/null; then
+    TABLE_PREFIX_CAP=$(python3 -c "print('${TABLE_PREFIX}'.title())" 2>/dev/null || echo "${TABLE_PREFIX}")
+else
+    TABLE_PREFIX_CAP=$(echo "${TABLE_PREFIX}" | tr '[:upper:]' '[:lower:]' | sed 's/\(.\).*/\1/' | tr '[:lower:]' '[:upper:]')$(echo "${TABLE_PREFIX}" | tr '[:upper:]' '[:lower:]' | sed 's/.\(.*\)/\1/')
+fi
 
 # 1.1 Generate Entity
 ENTITY_FILE="$JAVA_DIR/entity/${REL_CAP}.java"
@@ -760,6 +766,8 @@ cat <<XHTML > "$WEB_DIR/view/admin/${REL_LOWER}editor.xhtml"
 
         <ui:param name="viewPage" value="#{${REL_LOWER}EditorPage}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
+        
+        <f:viewParam name="entity" value="#{viewPage.entity}" converter="${REL_CAP}Converter" transient="true" />
 
         <f:viewAction action="#{viewPage.load}" />
     </f:metadata>
@@ -898,7 +906,7 @@ fi
 NAVIGATOR_FILE="$JAVA_DIR/view/${MODULE_NAME^}Navigator.java"
 if [ -f "$NAVIGATOR_FILE" ]; then
     if ! grep -q "case \"${REL_CAP}\"" "$NAVIGATOR_FILE"; then
-         sed -i "/switch(pageId) {/a \            case \"${REL_CAP}\": return ${BASE_PACKAGE}.view.${REL_CAP}Page.class;" "$NAVIGATOR_FILE"
+         sed -i "/switch.*(pageId).* {/a \\            case \"${REL_CAP}\": return ${BASE_PACKAGE}.view.${REL_CAP}Page.class;" "$NAVIGATOR_FILE"
          echo "Registered ${REL_CAP} in $NAVIGATOR_FILE"
     fi
 fi
@@ -914,21 +922,20 @@ if [ -f "$MODULE_FILE" ]; then
     
     # Add creation in postInit
     if ! grep -q "\"${REL_UPPER}\"" "$MODULE_FILE"; then
-        # Assuming postInit exists and is empty or has content. 
-        # We append to it. 
-        # A simple regex to find postInit's closing brace might be tricky if it's one line.
-        # create-module.sh makes it: @Override protected void postInit() {}
-        
-        # Try to replace empty postInit
-        sed -i "s/protected void postInit() {}/protected void postInit() { partyRelationshipTypeFacade.createTypeIfNotExist(\"${REL_UPPER}\", \"${REL_CAP}\"); }/" "$MODULE_FILE"
-        
-        # If not empty (multiline), verify if we can append (complex with sed, maybe just manual check or simpler approach)
-        # For this generator, we assume the structure created by create-module.sh or appended by this script previously.
-        if grep -q "protected void postInit() {" "$MODULE_FILE" && grep -q "}" "$MODULE_FILE"; then
-             # If it was already multiline or we just made it so, but we need to append if specific type not there.
-             # This is a bit fragile. Let's rely on the simple replacement for now, or append after the opening brace.
-             # If exact match of empty failed, it implies it has content.
-             sed -i "/protected void postInit() {/a \        partyRelationshipTypeFacade.createTypeIfNotExist(\"${REL_UPPER}\", \"${REL_CAP}\");" "$MODULE_FILE"
+        if grep -q "protected void postInit().*{}" "$MODULE_FILE"; then
+            sed -i "s/.*protected void postInit().*{}.*/    @Override\n    protected void postInit() {\n        partyRelationshipTypeFacade.createTypeIfNotExist(\"${REL_UPPER}\", \"${REL_CAP}\");\n    }/" "$MODULE_FILE"
+        elif ! grep -q "protected void postInit()" "$MODULE_FILE"; then
+             sed -i "\$ d" "$MODULE_FILE"
+             cat <<JAVA >> "$MODULE_FILE"
+
+    @Override
+    protected void postInit() {
+        partyRelationshipTypeFacade.createTypeIfNotExist("${REL_UPPER}", "${REL_CAP}");
+    }
+}
+JAVA
+        else
+            sed -i "/protected void postInit().*{/a \\        partyRelationshipTypeFacade.createTypeIfNotExist(\"${REL_UPPER}\", \"${REL_CAP}\");" "$MODULE_FILE"
         fi
         echo "Registered RelationshipType registration in $MODULE_FILE"
     fi

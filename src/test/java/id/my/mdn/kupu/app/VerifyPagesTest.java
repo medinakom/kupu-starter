@@ -15,7 +15,16 @@ public class VerifyPagesTest {
 
     @Test
     public void verifyAllPagesHaveViews() {
-        Reflections reflections = new Reflections("id.my.mdn.kupu");
+        String basePackage = getClass().getPackage().getName();
+        Reflections reflections = new Reflections("id.my.mdn.kupu.core", basePackage);
+
+        Set<Class<? extends id.my.mdn.kupu.core.base.AbstractModule>> modules = reflections.getSubTypesOf(id.my.mdn.kupu.core.base.AbstractModule.class);
+        for (Class<? extends id.my.mdn.kupu.core.base.AbstractModule> moduleClass : modules) {
+            if (!java.lang.reflect.Modifier.isAbstract(moduleClass.getModifiers())) {
+                ModuleUtil.register(moduleClass.getSimpleName(), moduleClass.getPackage().getName(), 0, true, true);
+            }
+        }
+
         Set<Class<? extends Page>> pages = reflections.getSubTypesOf(Page.class);
 
         StringBuilder missingViews = new StringBuilder();
