@@ -80,11 +80,13 @@ import id.my.mdn.kupu.core.base.view.annotation.Bookmarked;
 import id.my.mdn.kupu.core.base.view.annotation.Creator;
 import id.my.mdn.kupu.core.base.view.annotation.Editor;
 import id.my.mdn.kupu.core.base.view.annotation.Deleter;
+import static id.my.mdn.kupu.core.base.view.widget.Selector.SINGLE;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
+import java.util.List;
 
 @Named(value = "${PAGE_BEAN}")
 @ViewScoped
@@ -103,10 +105,23 @@ public class ${PAGE_NAME}Page extends Page implements Serializable {
     public void init() {
         super.init();
         
-        masterDataView.addSelectListener(selection -> {
-            ((${DETAIL_CAP}Filter) detailDataView.getFilter().getContent()).set${MAPPED_CAP}((${MASTER_CAP}) selection);
-            detailDataView.doFilter();
-        });
+        masterDataView.setSelectionMode(() -> SINGLE);
+        masterDataView.getSelector().setSelectionsLabel("ms");
+        masterDataView.getPager().setPageSizeLabel("mp");
+        masterDataView.getPager().setOffsetLabel("mo");
+        masterDataView.getSelector().addListener((s) -> onSelect${MASTER_CAP}((${MASTER_CAP}) s));
+        masterDataView.getSelector().addListenerInternal((s) -> onSelect${MASTER_CAP}((${MASTER_CAP}) s));
+
+        detailDataView.setSelectionsLabel("ds");
+        detailDataView.setDefaultChecker(() -> masterDataView.getSelected() == null);
+        detailDataView.setDefaultList(() -> List.of());
+    }
+
+    private void onSelect${MASTER_CAP}(${MASTER_CAP} selection) {
+        detailDataView.getFilter()
+                .<${DETAIL_CAP}Filter>getContent()
+                .set${MAPPED_CAP}(selection);
+        detailDataView.doFilter();
     }
 
     public ${MASTER_CAP}${MASTER_LIST_SUFFIX} getMasterDataView() { return masterDataView; }
@@ -174,17 +189,27 @@ cat <<XHTML > "$VIEW_BASE_DIR/view/${PAGE_FILE_BASE}.xhtml"
         <ui:param name="masterFilter" value="#{masterDataView.filter}" />
         <ui:param name="masterFilterType" value="overlay" />
         <ui:param name="masterFilterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${MASTER_FILE_BASE}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${MASTER_FILE_BASE}-filterui.xhtml" />
-        
+        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${MASTER_FILE_BASE}-filterui.xhtml">
+            <ui:param name="filter" value="#{masterFilter}" />
+        </ui:include>
+        <ui:param name="master_notool" value="true" />
+        <f:viewParam name="ms" value="#{masterDataView.selectionInternal}" converter="${MASTER_CAP}Converter" transient="true" />
+
+        <ui:param name="masterPager" value="#{masterDataView.pager}" />
+        <f:viewParam name="mp" value="#{masterPager.pageSize}" converter="LongConverter" transient="true" />
+        <f:viewParam name="mo" value="#{masterPager.offset}" converter="LongConverter" transient="true" />         
+
         <ui:param name="detailTitle" value="${DETAIL_CAP}" />
         <ui:param name="detailDataView" value="#{viewPage.detailDataView}" />
         <ui:param name="detailContentId" value=":detail-frm:#{detailDataView.name}" />
         <ui:param name="detailFilter" value="#{detailDataView.filter}" />
         <ui:param name="detailFilterType" value="overlay" />
         <ui:param name="detailFilterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${DETAIL_FILE_BASE}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${DETAIL_FILE_BASE}-filterui.xhtml" />
-        
-        <f:viewParam name="ms" value="#{masterDataView.selectionsInternal}" converter="${MASTER_CAP}ListConverter" transient="true" />
+        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${DETAIL_FILE_BASE}-filterui.xhtml">
+            <ui:param name="filter" value="#{detailFilter}" />
+        </ui:include>       
+        <ui:param name="detail_notool" value="true" />
+
         <f:viewParam name="ds" value="#{detailDataView.selectionsInternal}" converter="${DETAIL_CAP}ListConverter" transient="true" />
     </f:metadata>
 
@@ -196,6 +221,8 @@ cat <<XHTML > "$VIEW_BASE_DIR/view/${PAGE_FILE_BASE}.xhtml"
         <h:form id="master-frm" class="flex-grow-1 flex align-items-stretch">
             <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${MASTER_FILE_BASE}$(echo "$MASTER_LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml">
                 <ui:param name="dataView" value="#{masterDataView}" />
+                <ui:param name="selectCallback" value="refreshDetail()" />
+                <ui:param name="tableStyle" value="noheader" />
             </ui:include>
         </h:form>
     </ui:define>
