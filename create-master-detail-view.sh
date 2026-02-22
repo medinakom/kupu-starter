@@ -154,10 +154,9 @@ public class ${PAGE_NAME}Page extends Page implements Serializable {
 JAVA
 
 # 2. Generate Explorer XHTML Layout
-mkdir -p "$WEB_DIR/view/admin"
 mkdir -p "$VIEW_BASE_DIR/view/admin"
 
-cat <<XHTML > "$WEB_DIR/view/admin/${PAGE_FILE_BASE}-explorer.xhtml"
+cat <<XHTML > "$VIEW_BASE_DIR/view/admin/${PAGE_FILE_BASE}.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:f="jakarta.faces.core"
@@ -209,14 +208,6 @@ cat <<XHTML > "$WEB_DIR/view/admin/${PAGE_FILE_BASE}-explorer.xhtml"
         </h:form>
     </ui:define>
 
-</ui:composition>
-XHTML
-
-# 3. Generate View Wrapper
-cat <<XHTML > "$VIEW_BASE_DIR/view/admin/${PAGE_FILE_BASE}.xhtml"
-<ui:composition xmlns="http://www.w3.org/1999/xhtml"
-                xmlns:ui="jakarta.faces.facelets">
-    <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/view/admin/${PAGE_FILE_BASE}-explorer.xhtml" />
 </ui:composition>
 XHTML
 
