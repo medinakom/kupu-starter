@@ -770,8 +770,9 @@ cat <<XHTML > "$WEB_DIR/view/${ROLE_FILE_BASE}.xhtml"
         <ui:param name="sorter" value="#{dataView.sorter}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/sorter.xhtml" />
 
-        <ui:param name="pager" value="#{dataView.pager}" />
-        <ui:include src="/WEB-INF/resources/core/base/meta/pager.xhtml" />
+$(if [ "$IS_HIERARCHICAL" = false ]; then echo "        <ui:param name=\"pager\" value=\"#{dataView.pager}\" />
+        <ui:include src=\"/WEB-INF/resources/core/base/meta/pager.xhtml\" />
+"; fi)
 
         <f:viewParam name="s" value="#{dataView.selectionsInternal}" converter="${ROLE_CAP}ListConverter"
             transient="true" />
@@ -788,6 +789,8 @@ cat <<XHTML > "$WEB_DIR/view/${ROLE_FILE_BASE}.xhtml"
             </ui:include>
         </h:form>
     </ui:define>
+$(if [ "$IS_HIERARCHICAL" = true ]; then echo "
+    <ui:define name=\"pager\" />"; fi)
 
 </ui:composition>
 XHTML
