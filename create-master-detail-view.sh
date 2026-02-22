@@ -179,7 +179,7 @@ cat <<XHTML > "$VIEW_BASE_DIR/view/${PAGE_FILE_BASE}.xhtml"
                 xmlns:f="jakarta.faces.core"
                 xmlns:h="jakarta.faces.html"
                 xmlns:p="primefaces"
-                template="/WEB-INF/resources/core/base/explorer.xhtml">
+                template="/WEB-INF/templates/explorer.xhtml">
 
     <f:metadata>
         <ui:param name="viewPage" value="#{${PAGE_BEAN}}" />
