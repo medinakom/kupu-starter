@@ -209,6 +209,10 @@ cat <<XHTML > "$VIEW_BASE_DIR/view/${PAGE_FILE_BASE}.xhtml"
             <ui:param name="filter" value="#{detailFilter}" />
         </ui:include>       
         <ui:param name="detail_notool" value="true" />
+$(if [ "$DETAIL_LIST_SUFFIX" = "List" ]; then echo "
+        <ui:param name=\"detailPager\" value=\"#{detailDataView.pager}\" />
+        <f:viewParam name=\"dp\" value=\"#{detailPager.pageSize}\" converter=\"LongConverter\" transient=\"true\" />
+        <f:viewParam name=\"do\" value=\"#{detailPager.offset}\" converter=\"LongConverter\" transient=\"true\" />"; fi)
 
         <f:viewParam name="ds" value="#{detailDataView.selectionsInternal}" converter="${DETAIL_CAP}ListConverter" transient="true" />
     </f:metadata>
