@@ -208,6 +208,8 @@ cat <<XHTML > "$VIEW_BASE_DIR/view/admin/${PAGE_FILE_BASE}.xhtml"
         </h:form>
     </ui:define>
 
+$(if [ "$MASTER_LIST_SUFFIX" = "Tree" ]; then echo "    <ui:define name=\"master-pager\" />"; fi)
+$(if [ "$DETAIL_LIST_SUFFIX" = "Tree" ]; then echo "    <ui:define name=\"detail-pager\" />"; fi)
 </ui:composition>
 XHTML
 
