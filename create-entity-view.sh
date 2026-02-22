@@ -372,6 +372,7 @@ JAVA
 MTO_CASES=""
 for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
     if [ "$MTO_FLAG" = "MTO" ]; then
         MTO_CASES+="            case \"$NAME\":"$'\n'"                return cb.equal(froms[0].get(\"$NAME\"), filterValue);"$'\n'
     fi
