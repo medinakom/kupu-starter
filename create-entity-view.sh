@@ -1081,6 +1081,7 @@ cat <<XHTML > "$COMP_DIR/filter/meta/${ENTITY_FILE_BASE}-filterui.xhtml"
 
 $(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
     CONVERTER="QueryStringConverter"
     if [[ "$TYPE" == "Long" ]]; then CONVERTER="LongConverter"; fi
     if [[ "$TYPE" == "Integer" ]]; then CONVERTER="IntegerConverter"; fi
