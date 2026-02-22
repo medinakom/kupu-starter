@@ -289,6 +289,7 @@ JAVA
     echo "    "
     for field in "${FIELDS_ARRAY[@]}"; do
         IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         if [ "$MTO_FLAG" = "MTO" ]; then
             echo "    @Inject"
             echo "    private ${BASE_PACKAGE}.view.misc.${TYPE}LazyChooser ${NAME}FilterChooser;"
@@ -299,6 +300,7 @@ JAVA
     echo "    private String name;"
     for field in "${FIELDS_ARRAY[@]}"; do
         IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         echo "    @Bookmark(name = \"$NAME\")"
         echo "    private $TYPE $NAME;"
     done
@@ -307,6 +309,7 @@ JAVA
     echo "    public void init() {"
     for field in "${FIELDS_ARRAY[@]}"; do
         IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         if [ "$MTO_FLAG" = "MTO" ]; then
             CAP_NAME=$(echo "$NAME" | sed -r 's/(^.)/\U\1/')
             echo "        ${NAME}FilterChooser.setSaveListener((selection, ctx) -> set${CAP_NAME}(selection));"
@@ -318,6 +321,7 @@ JAVA
     echo "    public void setName(String name) { this.name = name; }"
     for field in "${FIELDS_ARRAY[@]}"; do
         IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         CAP_NAME=$(echo "$NAME" | sed -r 's/(^.)/\U\1/')
         if [ "$MTO_FLAG" = "MTO" ]; then
             echo "    public ${BASE_PACKAGE}.view.misc.${TYPE}LazyChooser get${CAP_NAME}FilterChooser() {"
@@ -1074,6 +1078,7 @@ cat <<XHTML > "$COMP_DIR/filter/${ROLE_FILE_BASE}-filterui.xhtml"
 
 $(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
     PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
     echo "    <div class=\"filter-field\">"
     echo "        <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
