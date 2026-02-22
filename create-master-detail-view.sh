@@ -154,9 +154,9 @@ public class ${PAGE_NAME}Page extends Page implements Serializable {
 JAVA
 
 # 2. Generate Explorer XHTML Layout
-mkdir -p "$VIEW_BASE_DIR/view/admin"
+mkdir -p "$VIEW_BASE_DIR/view"
 
-cat <<XHTML > "$VIEW_BASE_DIR/view/admin/${PAGE_FILE_BASE}.xhtml"
+cat <<XHTML > "$VIEW_BASE_DIR/view/${PAGE_FILE_BASE}.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:f="jakarta.faces.core"
