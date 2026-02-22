@@ -113,6 +113,8 @@ public class ${PAGE_NAME}Page extends Page implements Serializable {
         masterDataView.getSelector().addListenerInternal((s) -> onSelect${MASTER_CAP}((${MASTER_CAP}) s));
 
         detailDataView.getSelector().setSelectionsLabel("ds");
+$(if [ "$DETAIL_LIST_SUFFIX" = "List" ]; then echo "        detailDataView.getPager().setPageSizeLabel(\"dp\");
+        detailDataView.getPager().setOffsetLabel(\"do\");"; fi)
         detailDataView.setDefaultChecker(() -> masterDataView.getSelected() == null);
         detailDataView.setDefaultList(() -> List.of());
     }
