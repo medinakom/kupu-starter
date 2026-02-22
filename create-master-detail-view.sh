@@ -2,7 +2,7 @@
 
 # Kupu Master-Detail View Generator
 # Generates a composite view controller and template connecting two entities via OneToMany
-# Usage: ./create-master-detail-view.sh <module_name> <master_entity> <detail_entity> <mapped_by_field>
+# Usage: ./create-master-detail-view.sh <module_name> <master_entity> <detail_entity> <mapped_by_field> [page_name]
 
 if [ -f ".generator-config" ]; then
     APP_PACKAGE=$(cat .generator-config | head -1)
@@ -15,9 +15,10 @@ MODULE_NAME=$1
 MASTER_ENTITY=$2
 DETAIL_ENTITY=$3
 MAPPED_BY_FIELD=$4
+CUSTOM_PAGE_NAME=$5
 
 if [ -z "$MODULE_NAME" ] || [ -z "$MASTER_ENTITY" ] || [ -z "$DETAIL_ENTITY" ] || [ -z "$MAPPED_BY_FIELD" ]; then
-    echo "Usage: ./create-master-detail-view.sh <module_name> <master_entity> <detail_entity> <mapped_by_field>"
+    echo "Usage: ./create-master-detail-view.sh <module_name> <master_entity> <detail_entity> <mapped_by_field> [page_name]"
     exit 1
 fi
 
@@ -53,10 +54,15 @@ MASTER_ENTITY_PKG=$(find src/main/java -name "${MASTER_CAP}.java" -exec grep -l 
 DETAIL_ENTITY_PKG=$(find src/main/java -name "${DETAIL_CAP}.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${DETAIL_CAP}';/')
 DETAIL_FILTER_PKG=$(find src/main/java -name "${DETAIL_CAP}Filter.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${DETAIL_CAP}Filter';/')
 
-PAGE_NAME="${MASTER_CAP}${DETAIL_CAP}"
-PAGE_BEAN="${MASTER_LOWER_CAMEL}${DETAIL_CAP}Page"
-PAGE_FILE_BASE="${MASTER_FILE_BASE}${DETAIL_FILE_BASE}"
-
+if [ -n "$CUSTOM_PAGE_NAME" ]; then
+    PAGE_NAME="${CUSTOM_PAGE_NAME}"
+    PAGE_FILE_BASE=$(echo "$PAGE_NAME" | tr '[:upper:]' '[:lower:]')
+    PAGE_BEAN=$(echo "$PAGE_NAME" | sed 's/./\L&/')
+else
+    PAGE_NAME="${MASTER_CAP}${DETAIL_CAP}"
+    PAGE_FILE_BASE="${MASTER_FILE_BASE}${DETAIL_FILE_BASE}"
+    PAGE_BEAN="${MASTER_LOWER_CAMEL}${DETAIL_CAP}Page"
+fi
 
 # 1. Generate Page Controller
 cat <<JAVA > "$JAVA_DIR/view/${PAGE_NAME}Page.java"
@@ -161,7 +167,7 @@ cat <<XHTML > "$WEB_DIR/view/admin/${PAGE_FILE_BASE}-explorer.xhtml"
 
     <f:metadata>
         <ui:param name="viewPage" value="#{${PAGE_BEAN}}" />
-        <ui:param name="title" value="Master-Detail: ${MASTER_CAP} - ${DETAIL_CAP}" />
+        <ui:param name="title" value="${PAGE_NAME}" />
         
         <ui:param name="masterTitle" value="${MASTER_CAP}" />
         <ui:param name="masterDataView" value="#{viewPage.masterDataView}" />
@@ -226,12 +232,12 @@ fi
 # 5. Register in Menu
 MENU_FILE="$WEB_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
-    if ! grep -q "value=\"${MASTER_CAP} - ${DETAIL_CAP}\"" "$MENU_FILE"; then
-        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${MASTER_CAP} - ${DETAIL_CAP}\" icon=\"pi pi-sitemap\" actionListener=\"#{${MODULE_NAME}Navigator.open('${PAGE_NAME}', '')}\" immediate=\"true\" />" "$MENU_FILE"
+    if ! grep -q "value=\"${PAGE_NAME}\"" "$MENU_FILE"; then
+        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${PAGE_NAME}\" icon=\"pi pi-sitemap\" actionListener=\"#{${MODULE_NAME}Navigator.open('${PAGE_NAME}', '')}\" immediate=\"true\" />" "$MENU_FILE"
         echo "Registered ${PAGE_NAME} in $MENU_FILE"
     fi
 fi
 
 chmod +x "$0"
-echo "Successfully generated master-detail view components for $MASTER_CAP and $DETAIL_CAP in $BASE_PACKAGE"
+echo "Successfully generated master-detail view components for $PAGE_NAME in $BASE_PACKAGE"
 
