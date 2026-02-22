@@ -112,7 +112,7 @@ public class ${PAGE_NAME}Page extends Page implements Serializable {
         masterDataView.getSelector().addListener((s) -> onSelect${MASTER_CAP}((${MASTER_CAP}) s));
         masterDataView.getSelector().addListenerInternal((s) -> onSelect${MASTER_CAP}((${MASTER_CAP}) s));
 
-        detailDataView.setSelectionsLabel("ds");
+        detailDataView.getSelector().setSelectionsLabel("ds");
         detailDataView.setDefaultChecker(() -> masterDataView.getSelected() == null);
         detailDataView.setDefaultList(() -> List.of());
     }
