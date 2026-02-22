@@ -1,6 +1,6 @@
 # Kupu Starter Scripts Manual
 
-This manual provides detailed usage instructions for the automation scripts available in the `kupu-starter` project. These scripts accelerate development by generating boilerplate code for modules, pages, entities, roles, and relationships.
+This manual provides detailed usage instructions for the automation scripts available in the `kupu-starter/scripts` directory. These scripts accelerate development by generating boilerplate code for modules, pages, entities, roles, and relationships.
 
 ## 📋 Quick Reference
 
