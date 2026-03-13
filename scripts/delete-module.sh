@@ -12,12 +12,18 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 # 1. Load configuration
-if [ -f ".generator-config" ]; then
-    APP_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found."
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 # Parse arguments
 MODULE_NAME=$1
@@ -39,12 +45,13 @@ if [ -z "$MODULE_NAME" ]; then
 fi
 
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
+MODULE_PREFIX=$(echo "$APP_PACKAGE" | awk -F. '{print $NF}')
 
 # Define paths
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/app/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_PREFIX/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_PREFIX/$MODULE_NAME"
 
 # Check if module exists
 if [ ! -d "$JAVA_DIR" ]; then

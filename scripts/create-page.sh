@@ -4,12 +4,18 @@
 # usage: ./create-page.sh <sub_module_name> <page_name> [custom_xhtml]
 
 # 1. Load configuration
-if [ -f ".generator-config" ]; then
-    BASE_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found."
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+BASE_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 MODULE_NAME=$1
 if [ -z "$MODULE_NAME" ]; then read -p "Enter sub-module name: " MODULE_NAME; fi

@@ -4,12 +4,18 @@
 # usage: ./create-relationship-view.sh <module_name> <relationship_name> <from_role> <to_role>
 
 # 1. Load configuration
-if [ -f ".generator-config" ]; then
-    APP_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found."
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 if [ "$#" -lt 4 ]; then
     echo "Usage: ./create-relationship-view.sh <module_name> <relationship_name> <from_role> <to_role>"
@@ -39,7 +45,7 @@ BASE_PACKAGE="$APP_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
 WEB_DIR="src/main/webapp/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 
 mkdir -p "$JAVA_DIR"/{entity,dao,view/list,view/converter,view/filter,view/admin}
 mkdir -p "$RES_DIR"
@@ -659,8 +665,8 @@ cat <<XHTML > "$WEB_DIR/view/${REL_LOWER}.xhtml"
 
         <ui:param name="filter" value="#{dataView.filter}" />
         <ui:param name="filterType" value="overlay" />
-        <ui:param name="filterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${REL_LOWER}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${REL_LOWER}-filterui.xhtml" />
+        <ui:param name="filterUi" value="/WEB-INF/resources/${MODULE_NAME}/filter/${REL_LOWER}-filterui.xhtml" />
+        <ui:include src="/WEB-INF/resources/${MODULE_NAME}/filter/meta/${REL_LOWER}-filterui.xhtml" />
 
         <ui:param name="pager" value="#{dataView.pager}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/pager.xhtml" />
@@ -670,12 +676,12 @@ cat <<XHTML > "$WEB_DIR/view/${REL_LOWER}.xhtml"
     </f:metadata>
 
     <ui:define name="module-menu">
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/module-menu.xhtml" />
+        <ui:include src="/WEB-INF/resources/${MODULE_NAME}/module-menu.xhtml" />
     </ui:define>
 
     <ui:define name="content">
         <h:form id="data-frm" class="flex-grow-1 flex align-items-stretch">
-            <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${REL_LOWER}list.xhtml">
+            <ui:include src="/WEB-INF/resources/${MODULE_NAME}/list/${REL_LOWER}list.xhtml">
                 <ui:param name="dataView" value="#{viewPage.dataView}" />
             </ui:include>
         </h:form>

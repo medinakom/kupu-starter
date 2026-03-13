@@ -4,12 +4,18 @@
 # Usage: ./delete-role-view.sh <module_name> <role_name> [--force]
 
 # 1. Load configuration
-if [ -f ".generator-config" ]; then
-    APP_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found."
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 MODULE_NAME=$1
 ROLE_NAME=$2
@@ -29,8 +35,8 @@ MODULE_BEAN=$(echo "$MODULE_NAME" | sed 's/./\L&/')
 BASE_PACKAGE="$APP_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/app/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 
 FILES=(
     # Java files

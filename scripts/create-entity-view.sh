@@ -6,12 +6,18 @@
 # Usage: ./create-entity-view.sh <sub_module_name> <entity_name> <entity_package> [--no-acl]
 
 # 1. Load configuration
-if [ -f ".generator-config" ]; then
-    APP_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found. Are you in a Kupu application directory?"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 SUB_MODULE=""
 ENTITY_NAME=""
@@ -53,7 +59,7 @@ JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
 VIEW_BASE_DIR="src/main/webapp"
 VIEW_NS_PATH="/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 
 ENTITY_PKG_PATH=$(echo "$ENTITY_PKG" | tr . /)
 ENTITY_FILE="src/main/java/${ENTITY_PKG_PATH}/${ENTITY_CAP}.java"
@@ -887,8 +893,8 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/${ENTITY_FILE_BASE}.xhtml"
 
         <ui:param name="filter" value="#{dataView.filter}" />
         <ui:param name="filterType" value="overlay" />
-        <ui:param name="filterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${ENTITY_FILE_BASE}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${ENTITY_FILE_BASE}-filterui.xhtml" />
+        <ui:param name="filterUi" value="/WEB-INF/resources/${MODULE_NAME}/filter/${ENTITY_FILE_BASE}-filterui.xhtml" />
+        <ui:include src="/WEB-INF/resources/${MODULE_NAME}/filter/meta/${ENTITY_FILE_BASE}-filterui.xhtml" />
 
         <ui:param name="sorter" value="#{dataView.sorter}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/sorter.xhtml" />
@@ -902,12 +908,12 @@ $(if [ "$IS_HIERARCHICAL" = false ]; then echo "        <ui:param name=\"pager\"
     </f:metadata>
 
     <ui:define name="module-menu">
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/module-menu.xhtml" />
+        <ui:include src="/WEB-INF/resources/${MODULE_NAME}/module-menu.xhtml" />
     </ui:define>
 
     <ui:define name="content">
         <h:form id="data-frm" class="flex-grow-1 flex align-items-stretch">
-            <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${ENTITY_FILE_BASE}$(echo "$LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml" />
+            <ui:include src="/WEB-INF/resources/${MODULE_NAME}/list/${ENTITY_FILE_BASE}$(echo "$LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml" />
         </h:form>
     </ui:define>
 $(if [ "$IS_HIERARCHICAL" = true ]; then echo "

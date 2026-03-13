@@ -87,7 +87,7 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>./generate-persistence.sh</executable>
+                            <executable>./scripts/generate-persistence.sh</executable>
                         </configuration>
                     </execution>
                 </executions>

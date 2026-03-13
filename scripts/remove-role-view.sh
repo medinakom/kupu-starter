@@ -4,12 +4,18 @@
 # usage: ./remove-role-view.sh <module_name> <role_name>
 
 # 1. Load configuration
-if [ -f ".generator-config" ]; then
-    APP_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found."
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 MODULE_NAME=$1
 ROLE_NAME=$2
@@ -25,8 +31,8 @@ PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 
 # Define paths
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/app/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/components/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 
 echo "Removing components for role: $ROLE_NAME in module: $MODULE_NAME..."
 

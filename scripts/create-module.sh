@@ -4,12 +4,18 @@
 # usage: ./create-module.sh <module_name> [table_prefix]
 
 # 1. Load configuration
-if [ -f ".generator-config" ]; then
-    BASE_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found. Are you in a Kupu application directory?"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+BASE_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 MODULE_NAME=$1
 if [ -z "$MODULE_NAME" ]; then
@@ -44,13 +50,14 @@ fi
 
 MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/.*/\L&/; s/./\U&/')
 PKG_PATH=$(echo "$BASE_PACKAGE" | tr . /)
+MODULE_PREFIX=$(echo "$BASE_PACKAGE" | awk -F. '{print $NF}')
 
 # Define paths
 FULL_PKG="$BASE_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_PREFIX/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_PREFIX/$MODULE_NAME"
 
 echo "Creating directory structure for module: $MODULE_NAME..."
 mkdir -p "$JAVA_DIR"/{entity,dao,view/admin,view/converter,view/event,view/filter,view/list,service,api,event}
@@ -92,7 +99,7 @@ public class ${MODULE_CAP}Navigator extends PageNavigator implements Serializabl
             default: return null;
         }
     }
-    @Override protected String getHome() { return "/$MODULE_NAME/index.xhtml"; }
+    @Override protected String getHome() { return "/$MODULE_PREFIX/$MODULE_NAME/index.xhtml"; }
 }
 EOF
 
@@ -128,7 +135,7 @@ cat <<EOF > "$WEB_DIR/index.xhtml"
     </f:metadata>
 
     <ui:define name="module-menu">
-        <ui:include src="/WEB-INF/resources/app/$MODULE_NAME/module-menu.xhtml" />
+        <ui:include src="/WEB-INF/resources/$MODULE_PREFIX/$MODULE_NAME/module-menu.xhtml" />
     </ui:define>
 
     <ui:define name="content">

@@ -4,12 +4,18 @@
 # Generates a composite view controller and template connecting two entities via OneToMany
 # Usage: ./create-master-detail-view.sh <module_name> <master_entity> <detail_entity> <mapped_by_field> [page_name]
 
-if [ -f ".generator-config" ]; then
-    APP_PACKAGE=$(cat .generator-config | head -1)
-else
-    echo "Error: .generator-config not found. Are you in a Kupu application directory?"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CONFIG_FILE="$PROJECT_ROOT/.generator-config"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
 fi
+
+APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
+
+cd "$PROJECT_ROOT"
 
 MODULE_NAME=$1
 MASTER_ENTITY=$2
@@ -37,7 +43,7 @@ PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 
 BASE_PACKAGE="$APP_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/WEB-INF/resources/app/$MODULE_NAME"
+WEB_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 VIEW_BASE_DIR="src/main/webapp/$MODULE_NAME"
 
 MASTER_LIST_SUFFIX="List"
@@ -190,8 +196,8 @@ cat <<XHTML > "$VIEW_BASE_DIR/view/${PAGE_FILE_BASE}.xhtml"
         <ui:param name="masterContentId" value=":master-frm:#{masterDataView.name}" />
         <ui:param name="masterFilter" value="#{masterDataView.filter}" />
         <ui:param name="masterFilterType" value="overlay" />
-        <ui:param name="masterFilterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${MASTER_FILE_BASE}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${MASTER_FILE_BASE}-filterui.xhtml">
+        <ui:param name="masterFilterUi" value="/WEB-INF/resources/${MODULE_NAME}/filter/${MASTER_FILE_BASE}-filterui.xhtml" />
+        <ui:include src="/WEB-INF/resources/${MODULE_NAME}/filter/meta/${MASTER_FILE_BASE}-filterui.xhtml">
             <ui:param name="filter" value="#{masterFilter}" />
         </ui:include>
         <ui:param name="master_notool" value="true" />
@@ -206,8 +212,8 @@ cat <<XHTML > "$VIEW_BASE_DIR/view/${PAGE_FILE_BASE}.xhtml"
         <ui:param name="detailContentId" value=":detail-frm:#{detailDataView.name}" />
         <ui:param name="detailFilter" value="#{detailDataView.filter}" />
         <ui:param name="detailFilterType" value="overlay" />
-        <ui:param name="detailFilterUi" value="/WEB-INF/resources/app/${MODULE_NAME}/filter/${DETAIL_FILE_BASE}-filterui.xhtml" />
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/filter/meta/${DETAIL_FILE_BASE}-filterui.xhtml">
+        <ui:param name="detailFilterUi" value="/WEB-INF/resources/${MODULE_NAME}/filter/${DETAIL_FILE_BASE}-filterui.xhtml" />
+        <ui:include src="/WEB-INF/resources/${MODULE_NAME}/filter/meta/${DETAIL_FILE_BASE}-filterui.xhtml">
             <ui:param name="filter" value="#{detailFilter}" />
         </ui:include>       
         <ui:param name="detail_notool" value="true" />
@@ -220,12 +226,12 @@ $(if [ "$DETAIL_LIST_SUFFIX" = "List" ]; then echo "
     </f:metadata>
 
     <ui:define name="module-menu">
-        <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/module-menu.xhtml" />
+        <ui:include src="/WEB-INF/resources/${MODULE_NAME}/module-menu.xhtml" />
     </ui:define>
 
     <ui:define name="master">
         <h:form id="master-frm" class="flex-grow-1 flex align-items-stretch">
-            <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${MASTER_FILE_BASE}$(echo "$MASTER_LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml">
+            <ui:include src="/WEB-INF/resources/${MODULE_NAME}/list/${MASTER_FILE_BASE}$(echo "$MASTER_LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml">
                 <ui:param name="dataView" value="#{masterDataView}" />
                 <ui:param name="selectCallback" value="refreshDetail()" />
                 <ui:param name="tableStyle" value="noheader" />
@@ -235,7 +241,7 @@ $(if [ "$DETAIL_LIST_SUFFIX" = "List" ]; then echo "
 
     <ui:define name="detail">
         <h:form id="detail-frm" class="flex-grow-1 flex align-items-stretch">
-            <ui:include src="/WEB-INF/resources/app/${MODULE_NAME}/list/${DETAIL_FILE_BASE}$(echo "$DETAIL_LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml">
+            <ui:include src="/WEB-INF/resources/${MODULE_NAME}/list/${DETAIL_FILE_BASE}$(echo "$DETAIL_LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml">
                 <ui:param name="dataView" value="#{detailDataView}" />
             </ui:include>
         </h:form>
