@@ -99,7 +99,6 @@ public class ${MODULE_CAP}Navigator extends PageNavigator implements Serializabl
             default: return null;
         }
     }
-    @Override protected String getHome() { return "/$MODULE_PREFIX/$MODULE_NAME/index.xhtml"; }
 }
 EOF
 

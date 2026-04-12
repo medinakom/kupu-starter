@@ -3,14 +3,6 @@
   <persistence-unit name="KupuPersistenceUnit" transaction-type="JTA">
     <jta-data-source>java:global/KupuDataSource</jta-data-source>
     <jar-file>../../lib/kupu-core-1.0.jar</jar-file>
-    <class>id.my.mdn.kupu.core.accounting.entity.AccountingPeriod</class>
-    <class>id.my.mdn.kupu.core.accounting.entity.AccountingPeriodId</class>
-    <class>id.my.mdn.kupu.core.accounting.entity.AccountingTransaction</class>
-    <class>id.my.mdn.kupu.core.accounting.entity.AccountingTransactionType</class>
-    <class>id.my.mdn.kupu.core.accounting.entity.BusinessEntityGLAccount</class>
-    <class>id.my.mdn.kupu.core.accounting.entity.BusinessEntityGLAccountId</class>
-    <class>id.my.mdn.kupu.core.accounting.entity.GLAccount</class>
-    <class>id.my.mdn.kupu.core.accounting.entity.TransactionEntry</class>
     <class>id.my.mdn.kupu.core.common.model.IntegerSerialSeed</class>
     <class>id.my.mdn.kupu.core.common.model.MeasurementUnit</class>
     <class>id.my.mdn.kupu.core.common.model.SerialSeed</class>

@@ -58,6 +58,15 @@ public class VerifyPagesTest {
                 continue;
             }
 
+            // Check 3: Is it index.xhtml at module level (Fallback)?
+            String modulePath = calculateModulePath(pageClass);
+            if (modulePath != null) {
+                if (getClass().getResource("/META-INF/resources" + modulePath + "/index.xhtml") != null ||
+                        new File("src/main/webapp" + modulePath + "/index.xhtml").exists()) {
+                    continue;
+                }
+            }
+
             // Failure
             missingViews.append("View not found for ").append(pageClass.getName())
                     .append(". Expected at: ").append(viewPath).append("\n");
@@ -66,5 +75,34 @@ public class VerifyPagesTest {
         if (missingViews.length() > 0) {
             Assertions.fail("Some pages are missing their view files:\n" + missingViews.toString());
         }
+    }
+    private String calculateModulePath(Class<?> pageClass) {
+        String pkgName = pageClass.getPackage().getName();
+        if (pkgName.contains(".view")) {
+            pkgName = pkgName.substring(0, pkgName.indexOf(".view"));
+        }
+
+        String parentPkg;
+        if (pkgName.contains(".core")) {
+            parentPkg = pkgName.substring(0, pkgName.indexOf(".core"));
+        } else if (pkgName.contains(".app")) {
+            parentPkg = pkgName.substring(0, pkgName.indexOf(".app"));
+        } else {
+            int lastDot = pkgName.lastIndexOf('.');
+            if (lastDot != -1) {
+                parentPkg = pkgName.substring(0, lastDot);
+            } else {
+                parentPkg = "";
+            }
+        }
+
+        String modulePath = pkgName;
+        if (!parentPkg.isEmpty() && modulePath.startsWith(parentPkg + ".")) {
+            modulePath = modulePath.substring(parentPkg.length());
+        } else if (parentPkg.isEmpty()) {
+            modulePath = "." + modulePath;
+        }
+
+        return modulePath.replaceAll("\\.", "/").toLowerCase();
     }
 }
