@@ -138,11 +138,18 @@ rm -f "$JAVA_DIR/view/converter/${REL_CAP}ListConverter.java"
 if [ -n "$FROM_ROLE" ]; then delete_lazy_components "$FROM_ROLE"; fi
 if [ -n "$TO_ROLE" ]; then delete_lazy_components "$TO_ROLE"; fi
 
-# 1.2 Remove misc directory if empty
+# 1.2 Remove misc and list directories if empty
 if [ -d "$JAVA_DIR/view/misc" ]; then
     if [ -z "$(ls -A "$JAVA_DIR/view/misc")" ]; then
         rmdir "$JAVA_DIR/view/misc"
         echo "Removed empty view/misc directory."
+    fi
+fi
+
+if [ -d "$JAVA_DIR/view/list" ]; then
+    if [ -z "$(ls -A "$JAVA_DIR/view/list")" ]; then
+        rmdir "$JAVA_DIR/view/list"
+        echo "Removed empty view/list directory."
     fi
 fi
 
