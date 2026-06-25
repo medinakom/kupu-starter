@@ -28,7 +28,7 @@ fi
 
 ENTITY_CAP=$(echo "$ENTITY_NAME" | sed 's/./\U&/')
 ENTITY_LABEL=$(echo "${ENTITY_CAP}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
-ENTITY_LOWER=$(echo "$ENTITY_NAME" | sed 's/./\L&/')
+ENTITY_LOWER_CAMEL=$(echo "$ENTITY_NAME" | sed 's/./\L&/')
 ENTITY_FILE_BASE=$(echo "$ENTITY_NAME" | tr '[:upper:]' '[:lower:]')
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 
@@ -99,13 +99,13 @@ fi
 # Remove from Menu
 MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
-    if grep -q "value=\"${ENTITY_LABEL}\"" "$MENU_FILE"; then
-        sed -i "/value=\"${ENTITY_LABEL}\"/d" "$MENU_FILE"
-        echo "Removed ${ENTITY_LABEL} from $MENU_FILE"
+    if grep -q "Navigator\.open('${ENTITY_LABEL}'," "$MENU_FILE"; then
+        sed -i "/Navigator\.open('${ENTITY_LABEL}',/d" "$MENU_FILE"
+        echo "Removed ${ENTITY_LABEL} menu item from $MENU_FILE"
     fi
-    if grep -q "value=\"${ENTITY_CAP}\"" "$MENU_FILE"; then
-        sed -i "/value=\"${ENTITY_CAP}\"/d" "$MENU_FILE"
-        echo "Removed ${ENTITY_CAP} from $MENU_FILE"
+    if grep -q "Navigator\.open('${ENTITY_CAP}'," "$MENU_FILE"; then
+        sed -i "/Navigator\.open('${ENTITY_CAP}',/d" "$MENU_FILE"
+        echo "Removed ${ENTITY_CAP} menu item from $MENU_FILE"
     fi
 fi
 
@@ -114,8 +114,6 @@ RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
 SEC_FILE="$RES_DIR/security.json"
 
 if [ -f "$SEC_FILE" ]; then
-    ENTITY_LOWER_CAMEL=$(echo "$ENTITY_NAME" | sed 's/./\L&/')
-    
     if command -v python3 &>/dev/null; then
         python3 -c "
 import json, sys
@@ -151,10 +149,32 @@ fi
 PROPS_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
 for PROPS_FILE in "$PROPS_DIR/string_en.properties" "$PROPS_DIR/string_id.properties"; do
     if [ -f "$PROPS_FILE" ]; then
-        BEFORE=$(grep -c "^${ENTITY_LOWER}\." "$PROPS_FILE" 2>/dev/null || echo 0)
+        BEFORE=$(grep -c "^${ENTITY_LOWER_CAMEL}\." "$PROPS_FILE" 2>/dev/null || echo 0)
         if [ "$BEFORE" -gt 0 ]; then
-            sed -i "/^${ENTITY_LOWER}\./d" "$PROPS_FILE"
-            echo "Removed $BEFORE entries with prefix '${ENTITY_LOWER}.' from $PROPS_FILE"
+            sed -i "/^${ENTITY_LOWER_CAMEL}\./d" "$PROPS_FILE"
+            echo "Removed $BEFORE entries with prefix '${ENTITY_LOWER_CAMEL}.' from $PROPS_FILE"
         fi
     fi
 done
+
+# Cleanup Empty Directories
+rmdir "$COMP_DIR/editor" 2>/dev/null
+rmdir "$COMP_DIR/detail" 2>/dev/null
+rmdir "$COMP_DIR/list" 2>/dev/null
+rmdir "$COMP_DIR/filter/meta" 2>/dev/null
+rmdir "$COMP_DIR/filter" 2>/dev/null
+rmdir "$COMP_DIR" 2>/dev/null
+rmdir "$JAVA_DIR/view/admin" 2>/dev/null
+rmdir "$JAVA_DIR/view/detail" 2>/dev/null
+rmdir "$JAVA_DIR/view/filter" 2>/dev/null
+rmdir "$JAVA_DIR/view/converter" 2>/dev/null
+rmdir "$JAVA_DIR/view/list" 2>/dev/null
+rmdir "$JAVA_DIR/view" 2>/dev/null
+rmdir "$JAVA_DIR/dao" 2>/dev/null
+rmdir "$JAVA_DIR/entity" 2>/dev/null
+rmdir "$JAVA_DIR" 2>/dev/null
+rmdir "$VIEW_BASE_DIR/view/admin" 2>/dev/null
+rmdir "$VIEW_BASE_DIR/view" 2>/dev/null
+rmdir "$VIEW_BASE_DIR" 2>/dev/null
+
+echo "Entity '$ENTITY_NAME' deletion complete."

@@ -858,7 +858,7 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/${ENTITY_FILE_BASE}.xhtml"
     xmlns:h="jakarta.faces.html" xmlns:f="jakarta.faces.core" xmlns:ui="jakarta.faces.facelets" xmlns:p="primefaces">
 
     <f:metadata>
-        <ui:param name="title" value="${ENTITY_NAME}" />
+        <ui:param name="title" value="#{string['${ENTITY_LOWER_CAMEL}.page.title']}" />
 
         <ui:param name="viewPage" value="#{${ENTITY_LOWER_CAMEL}Page}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
@@ -908,7 +908,7 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/admin/${ENTITY_FILE_BASE}editor.
         <ui:param name="viewPage" value="#{${ENTITY_LOWER_CAMEL}EditorPage}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
 
-        <ui:param name="primaryTitle" value="Editor $(echo "${ENTITY_NAME}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')" />
+        <ui:param name="primaryTitle" value="#{string['${ENTITY_LOWER_CAMEL}.editor.page.title']}" />
 
         <ui:param name="notool" value="true" />
         <ui:param name="nofilter" value="true" />
@@ -1131,9 +1131,9 @@ fi
 # 12. Register in Menu
 MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
-    if ! grep -q "value=\"${ENTITY_LABEL}\"" "$MENU_FILE"; then
+    if ! grep -q "open('${ENTITY_LABEL}'," "$MENU_FILE"; then
         # Insert before the closing tag, ensuring correct formatting
-        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${ENTITY_LABEL}\" icon=\"pi pi-file\" actionListener=\"#{${MODULE_NAME}Navigator.open('${ENTITY_LABEL}', '')}\" immediate=\"true\" />" "$MENU_FILE"
+        sed -i "/<\/ui:composition>/i \\    <p:menuitem value=\"#{string['${ENTITY_LOWER_CAMEL}.page.title']}\" icon=\"pi pi-file\" actionListener=\"#{${MODULE_NAME}Navigator.open('${ENTITY_LABEL}', '')}\" immediate=\"true\" />" "$MENU_FILE"
         echo "Registered ${ENTITY_LABEL} in $MENU_FILE"
     fi
 fi
@@ -1191,13 +1191,42 @@ if not exists:
 fi
 
 # 12. Append Localization Properties
+EN_PROPS_FILE="$RES_DIR/string_en.properties"
+ID_PROPS_FILE="$RES_DIR/string_id.properties"
+
+# Create files with module title if they don't exist yet
+if [ ! -f "$EN_PROPS_FILE" ]; then
+    MODULE_LABEL=$(echo "${MODULE_NAME}" | sed 's/./\U&/')
+    echo "${MODULE_NAME}.module.title=${MODULE_LABEL}" > "$EN_PROPS_FILE"
+    echo "Created $EN_PROPS_FILE"
+fi
+if [ ! -f "$ID_PROPS_FILE" ]; then
+    MODULE_LABEL=$(echo "${MODULE_NAME}" | sed 's/./\U&/')
+    echo "${MODULE_NAME}.module.title=${MODULE_LABEL}" > "$ID_PROPS_FILE"
+    echo "Created $ID_PROPS_FILE"
+fi
+
+if ! grep -q "^${ENTITY_LOWER_CAMEL}\.page\.title=" "$EN_PROPS_FILE"; then
+    echo "${ENTITY_LOWER_CAMEL}.page.title=${ENTITY_LABEL}" >> "$EN_PROPS_FILE"
+fi
+if ! grep -q "^${ENTITY_LOWER_CAMEL}\.editor\.page\.title=" "$EN_PROPS_FILE"; then
+    echo "${ENTITY_LOWER_CAMEL}.editor.page.title=${ENTITY_LABEL} Editor" >> "$EN_PROPS_FILE"
+fi
+
+if ! grep -q "^${ENTITY_LOWER_CAMEL}\.page\.title=" "$ID_PROPS_FILE"; then
+    echo "${ENTITY_LOWER_CAMEL}.page.title=${ENTITY_LABEL}" >> "$ID_PROPS_FILE"
+fi
+if ! grep -q "^${ENTITY_LOWER_CAMEL}\.editor\.page\.title=" "$ID_PROPS_FILE"; then
+    echo "${ENTITY_LOWER_CAMEL}.editor.page.title=Editor ${ENTITY_LABEL}" >> "$ID_PROPS_FILE"
+fi
+
 for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     if [[ "$NAME" != "id" ]]; then
         if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then continue; fi
         PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
         KEY="${ENTITY_LOWER_CAMEL}.${NAME}.label"
-        for prop_file in "$RES_DIR/string_en.properties" "$RES_DIR/string_id.properties"; do
+        for prop_file in "$EN_PROPS_FILE" "$ID_PROPS_FILE"; do
             if [ -f "$prop_file" ]; then
                 if ! grep -q "^${KEY}=" "$prop_file"; then
                     echo "${KEY}=${PRETTY_NAME}" >> "$prop_file"
