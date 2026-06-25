@@ -58,7 +58,7 @@ delete_lazy_components() {
     
     local ROLE_CAP=$(echo "$ROLE_NAME" | sed 's/./\U&/')
     
-    local LAZY_LIST_FILE="$JAVA_DIR/view/misc/${ROLE_CAP}LazyList.java"
+    local LAZY_LIST_FILE="$JAVA_DIR/view/list/${ROLE_CAP}LazyList.java"
     local LAZY_CHOOSER_FILE="$JAVA_DIR/view/misc/${ROLE_CAP}LazyChooser.java"
 
     # Check for usage in other Java files before deleting

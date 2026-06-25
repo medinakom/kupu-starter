@@ -60,14 +60,14 @@ generate_lazy_components() {
     local ROLE_CAP=$(echo "$ROLE_NAME" | sed 's/./\U&/')
     local ROLE_LOWER=$(echo "$ROLE_NAME" | sed 's/./\L&/')
     
-    local LAZY_LIST_FILE="$JAVA_DIR/view/misc/${ROLE_CAP}LazyList.java"
+    local LAZY_LIST_FILE="$JAVA_DIR/view/list/${ROLE_CAP}LazyList.java"
     local LAZY_CHOOSER_FILE="$JAVA_DIR/view/misc/${ROLE_CAP}LazyChooser.java"
 
     # Generate LazyList
     if [ ! -f "$LAZY_LIST_FILE" ]; then
         echo "Generating ${ROLE_CAP}LazyList..."
         cat <<JAVA > "$LAZY_LIST_FILE"
-package ${BASE_PACKAGE}.view.misc;
+package ${BASE_PACKAGE}.view.list;
 
 import ${BASE_PACKAGE}.dao.${ROLE_CAP}Facade;
 import ${BASE_PACKAGE}.entity.${ROLE_CAP};
@@ -119,6 +119,7 @@ JAVA
 package ${BASE_PACKAGE}.view.misc;
 
 import ${BASE_PACKAGE}.entity.${ROLE_CAP};
+import ${BASE_PACKAGE}.view.list.${ROLE_CAP}LazyList;
 import id.my.mdn.kupu.core.base.util.FilterTypes.FilterData;
 import id.my.mdn.kupu.core.base.view.widget.InlineEditor;
 import jakarta.enterprise.context.Dependent;
