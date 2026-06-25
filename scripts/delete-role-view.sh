@@ -27,7 +27,8 @@ if [ -z "$MODULE_NAME" ] || [ -z "$ROLE_NAME" ]; then
 fi
 
 ROLE_CAP=$(echo "$ROLE_NAME" | sed 's/./\U&/')
-ROLE_LOWER=$(echo "$ROLE_NAME" | tr '[:upper:]' '[:lower:]')
+ROLE_LOWER=$(echo "$ROLE_NAME" | sed 's/./\L&/')
+ROLE_FILE_BASE=$(echo "$ROLE_NAME" | tr '[:upper:]' '[:lower:]')
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 MODULE_BEAN=$(echo "$MODULE_NAME" | sed 's/./\L&/')
 
@@ -50,15 +51,15 @@ FILES=(
     "$JAVA_DIR/view/list/${ROLE_CAP}List.java"
     "$JAVA_DIR/view/admin/${ROLE_CAP}DetailPage.java"
     # Web files
-    "$WEB_DIR/view/${ROLE_LOWER}.xhtml"
-    "$WEB_DIR/view/admin/${ROLE_LOWER}editor.xhtml"
-    "$WEB_DIR/view/admin/${ROLE_LOWER}detail.xhtml"
+    "$WEB_DIR/view/${ROLE_FILE_BASE}.xhtml"
+    "$WEB_DIR/view/admin/${ROLE_FILE_BASE}editor.xhtml"
+    "$WEB_DIR/view/admin/${ROLE_FILE_BASE}detail.xhtml"
     # Component files
-    "$COMP_DIR/list/${ROLE_LOWER}list.xhtml"
-    "$COMP_DIR/editor/${ROLE_LOWER}editor.xhtml"
-    "$COMP_DIR/detail/${ROLE_LOWER}detail.xhtml"
-    "$COMP_DIR/filter/${ROLE_LOWER}-filterui.xhtml"
-    "$COMP_DIR/filter/meta/${ROLE_LOWER}-filterui.xhtml"
+    "$COMP_DIR/list/${ROLE_FILE_BASE}list.xhtml"
+    "$COMP_DIR/editor/${ROLE_FILE_BASE}editor.xhtml"
+    "$COMP_DIR/detail/${ROLE_FILE_BASE}detail.xhtml"
+    "$COMP_DIR/filter/${ROLE_FILE_BASE}-filterui.xhtml"
+    "$COMP_DIR/filter/meta/${ROLE_FILE_BASE}-filterui.xhtml"
 )
 
 if [ "$FORCE" != "--force" ]; then
