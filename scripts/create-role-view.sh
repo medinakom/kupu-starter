@@ -1039,7 +1039,7 @@ cat <<XHTML > "$WEB_DIR/view/${ROLE_FILE_BASE}.xhtml"
                 template="/WEB-INF/templates/page.xhtml">
 
     <f:metadata>
-        <ui:param name="title" value="${ROLE_CAP}" />
+        <ui:param name="title" value="#{string['${ROLE_LOWER}.page.title']}" />
 
         <ui:param name="viewPage" value="#{${ROLE_LOWER}Page}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
@@ -1092,7 +1092,7 @@ cat <<XHTML > "$WEB_DIR/view/admin/${ROLE_FILE_BASE}editor.xhtml"
         <ui:param name="viewPage" value="#{${ROLE_LOWER}EditorPage}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
 
-        <ui:param name="primaryTitle" value="Editor ${ROLE_TITLE}" />
+        <ui:param name="primaryTitle" value="#{string['${ROLE_LOWER}.editor.page.title']}" />
 
         <ui:param name="notool" value="true" />
         <ui:param name="nofilter" value="true" />
@@ -1151,7 +1151,7 @@ fi
 echo "                template=\"/WEB-INF/templates/editor-page.xhtml\">"
 echo ""
 echo "    <f:metadata>"
-echo "        <ui:param name=\"primaryTitle\" value=\"Editor ${ROLE_CAP}\" />"
+echo "        <ui:param name=\"primaryTitle\" value=\"#{string['${ROLE_LOWER}.editor.page.title']}\" />"
 echo "        <ui:param name=\"secondaryTitle\" value=\"Baru\" />"
 echo ""
 echo "        <ui:param name=\"viewPage\" value=\"#{${ROLE_LOWER}EditorPage}\" />"
@@ -1305,12 +1305,12 @@ else
 echo "<ui:composition xmlns=\"http://www.w3.org/1999/xhtml\""
 echo "                xmlns:ui=\"jakarta.faces.facelets\""
 echo "                xmlns:f=\"jakarta.faces.core\""
-echo "                template=\"/WEB-INF/templates/child-page.xhtml\" "
+echo "                template=\"/WEB-INF/templates/child-page.xhtml\""
 echo "                xmlns:p=\"http://primefaces.org/ui\""
-echo "                xmlns:h=\"jakarta.faces.html\""
+echo "                xmlns:h=\"jakarta.faces.html\">"
 echo ""
 echo "    <f:metadata>"
-echo "        <ui:param name=\"primaryTitle\" value=\"Data ${ROLE_CAP}\" />"
+echo "        <ui:param name=\"primaryTitle\" value=\"#{string['${ROLE_LOWER}.detail.page.title']}\" />"
 echo ""
 echo "        <ui:param name=\"viewPage\" value=\"#{${ROLE_LOWER}DetailPage}\" />"
 echo "        <ui:include src=\"/WEB-INF/resources/core/base/meta/page.xhtml\"/>     "
@@ -1740,11 +1740,24 @@ fi
 if ! grep -q "^${ROLE_LOWER}\.name\.label=" "$EN_PROPS_FILE"; then
     echo "${ROLE_LOWER}.name.label=Name" >> "$EN_PROPS_FILE"
 fi
+if ! grep -q "^${ROLE_LOWER}\.page\.title=" "$EN_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.page.title=${ROLE_LABEL}" >> "$EN_PROPS_FILE"
+fi
+if ! grep -q "^${ROLE_LOWER}\.editor\.page\.title=" "$EN_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.editor.page.title=${ROLE_LABEL} Editor" >> "$EN_PROPS_FILE"
+fi
 if ! grep -q "^${ROLE_LOWER}\.detail\.page\.title=" "$EN_PROPS_FILE"; then
     echo "${ROLE_LOWER}.detail.page.title=${ROLE_LABEL} Detail" >> "$EN_PROPS_FILE"
 fi
+
 if ! grep -q "^${ROLE_LOWER}\.name\.label=" "$ID_PROPS_FILE"; then
     echo "${ROLE_LOWER}.name.label=Nama" >> "$ID_PROPS_FILE"
+fi
+if ! grep -q "^${ROLE_LOWER}\.page\.title=" "$ID_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.page.title=${ROLE_LABEL}" >> "$ID_PROPS_FILE"
+fi
+if ! grep -q "^${ROLE_LOWER}\.editor\.page\.title=" "$ID_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.editor.page.title=Editor ${ROLE_LABEL}" >> "$ID_PROPS_FILE"
 fi
 if ! grep -q "^${ROLE_LOWER}\.detail\.page\.title=" "$ID_PROPS_FILE"; then
     echo "${ROLE_LOWER}.detail.page.title=Detail ${ROLE_LABEL}" >> "$ID_PROPS_FILE"
