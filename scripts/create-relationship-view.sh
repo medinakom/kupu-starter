@@ -310,27 +310,83 @@ JAVA
 cat <<JAVA > "$JAVA_DIR/view/filter/${REL_CAP}Filter.java"
 package ${BASE_PACKAGE}.view.filter;
 
-import ${BASE_PACKAGE}.entity.${FROM_ROLE_CAP};
-import ${BASE_PACKAGE}.entity.${TO_ROLE_CAP};
 import id.my.mdn.kupu.core.base.view.annotation.Bookmark;
 import id.my.mdn.kupu.core.base.view.widget.FilterContent;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.Dependent;
+import jakarta.inject.Inject;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+import ${BASE_PACKAGE}.entity.${FROM_ROLE_CAP};
+import ${BASE_PACKAGE}.entity.${TO_ROLE_CAP};
+import ${BASE_PACKAGE}.view.misc.${FROM_ROLE_CAP}LazyChooser;
+import ${BASE_PACKAGE}.view.misc.${TO_ROLE_CAP}LazyChooser;
 
 @Dependent
 public class ${REL_CAP}Filter extends FilterContent implements Serializable {
-    
+
     @Bookmark(name = "${FROM_ROLE_LOWER}")
     private ${FROM_ROLE_CAP} ${FROM_ROLE_LOWER};
-    
+
     @Bookmark(name = "${TO_ROLE_LOWER}")
     private ${TO_ROLE_CAP} ${TO_ROLE_LOWER};
+
+    @Inject
+    private ${FROM_ROLE_CAP}LazyChooser fromRoleChooser;
+
+    @Inject
+    private ${TO_ROLE_CAP}LazyChooser toRoleChooser;
+
+    @PostConstruct
+    protected void init() {
+
+        fromRoleChooser.setContext(this::ctxFromRoleChooser);
+        fromRoleChooser.setSaveListener(this::onSelectFromRole);
+
+        toRoleChooser.setContext(this::ctxToRoleChooser);
+        toRoleChooser.setSaveListener(this::onSelectToRole);
+    }
+
+    private Map<String, Object> ctxFromRoleChooser() {
+        Map<String, Object> context = new HashMap<>();
+        return context;
+    }
+
+    public void onSelectFromRole(${FROM_ROLE_CAP} selection) {
+        set${FROM_ROLE_CAP}(selection);
+    }
+
+    private Map<String, Object> ctxToRoleChooser() {
+        Map<String, Object> context = new HashMap<>();
+        return context;
+    }
+
+    public void onSelectToRole(${TO_ROLE_CAP} selection) {
+        set${TO_ROLE_CAP}(selection);
+    }
 
     public ${FROM_ROLE_CAP} get${FROM_ROLE_CAP}() { return ${FROM_ROLE_LOWER}; }
     public void set${FROM_ROLE_CAP}(${FROM_ROLE_CAP} val) { this.${FROM_ROLE_LOWER} = val; }
 
     public ${TO_ROLE_CAP} get${TO_ROLE_CAP}() { return ${TO_ROLE_LOWER}; }
     public void set${TO_ROLE_CAP}(${TO_ROLE_CAP} val) { this.${TO_ROLE_LOWER} = val; }
+
+    public ${FROM_ROLE_CAP}LazyChooser getFromRoleChooser() {
+        return fromRoleChooser;
+    }
+
+    public void setFromRoleChooser(${FROM_ROLE_CAP}LazyChooser fromRoleChooser) {
+        this.fromRoleChooser = fromRoleChooser;
+    }
+
+    public ${TO_ROLE_CAP}LazyChooser getToRoleChooser() {
+        return toRoleChooser;
+    }
+
+    public void setToRoleChooser(${TO_ROLE_CAP}LazyChooser toRoleChooser) {
+        this.toRoleChooser = toRoleChooser;
+    }
 }
 JAVA
 
@@ -695,24 +751,75 @@ XHTML
 cat <<XHTML > "$COMP_DIR/filter/${REL_LOWER}-filterui.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml" 
                 xmlns:ui="jakarta.faces.facelets" 
-                xmlns:p="primefaces">
+                xmlns:k="http://xmlns.jcp.org/jsf/composite/kupu"
+                xmlns:p="primefaces"
+                xmlns:f="jakarta.faces.core"
+                xmlns:h="jakarta.faces.html">
 
     <div class="filter-field">
-        <p:outputLabel for="${FROM_ROLE_LOWER}" value="${FROM_ROLE_CAP}" />
-        <p:autoComplete id="${FROM_ROLE_LOWER}" value="#{filter.content.${FROM_ROLE_LOWER}}"
-                        completeMethod="#{${FROM_ROLE_LOWER}Page.dataView.complete}"
-                        var="item" itemLabel="#{item.party.name}" itemValue="#{item}"
-                        converter="${FROM_ROLE_CAP}Converter"
-                        dropdown="true" forceSelection="true" />
+        <p:outputLabel for="fromRole" value="#{string['${REL_LOWER}.fromRole.label']}" />
+        <k:lazySelector id="fromRole"
+                        value="#{filter.content.${FROM_ROLE_LOWER} ne null ? filter.content.${FROM_ROLE_LOWER}.party.name : ''}"
+                        selector="${FROM_ROLE_CAP}Selector" required="true" />
+
+        <k:selectorDialog selector="${FROM_ROLE_CAP}Selector" widgetVar="${FROM_ROLE_LOWER}Selector" chooser="#{filter.content.fromRoleChooser}"
+                          styleClass="w-5">
+            <p:dataTable var="data" value="#{filter.content.fromRoleChooser.list.model}" selectionMode="single"
+                         selection="#{filter.content.fromRoleChooser.selected}" scrollRows="10" scrollable="true" liveScroll="true"
+                         scrollHeight="200">
+
+                <p:ajax event="rowSelect" listener="#{filter.content.fromRoleChooser.onSave}"
+                        oncomplete="PF('${FROM_ROLE_LOWER}Selector').hide()" />
+
+                <f:facet name="header">
+                    <span class="ui-input-icon-left w-full">
+                        <i class="pi pi-search" />
+                        <p:inputText value="#{filter.content.fromRoleChooser.searchTerm}" immediate="true" class="w-full">
+                            <p:ajax event="keyup" update="@parent:@parent" delay="300" />
+                        </p:inputText>
+                    </span>
+                </f:facet>
+                <p:column headerText="#{string['common.id.label']}">
+                    <h:outputText value="#{data.id}" />
+                </p:column>
+                <p:column headerText="#{string['common.name.label']}">
+                    <h:outputText value="#{data.party.name}" />
+                </p:column>
+            </p:dataTable>
+        </k:selectorDialog>
     </div>
 
     <div class="filter-field">
-        <p:outputLabel for="${TO_ROLE_LOWER}" value="${TO_ROLE_CAP}" />
-        <p:autoComplete id="${TO_ROLE_LOWER}" value="#{filter.content.${TO_ROLE_LOWER}}"
-                        completeMethod="#{${TO_ROLE_LOWER}Page.dataView.complete}"
-                        var="item" itemLabel="#{item.party.name}" itemValue="#{item}"
-                        converter="${TO_ROLE_CAP}Converter"
-                        dropdown="true" forceSelection="true" />
+        <p:outputLabel for="toRole" value="#{string['${REL_LOWER}.toRole.label']}" />
+        <k:lazySelector id="toRole"
+                        value="#{filter.content.${TO_ROLE_LOWER} ne null ? filter.content.${TO_ROLE_LOWER}.party.name : ''}"
+                        selector="${TO_ROLE_CAP}Selector" required="true" />
+        
+        <k:selectorDialog selector="${TO_ROLE_CAP}Selector" widgetVar="${TO_ROLE_LOWER}Selector" chooser="#{filter.content.toRoleChooser}"
+                          styleClass="w-5">
+            <p:dataTable var="data" value="#{filter.content.toRoleChooser.list.model}" selectionMode="single"
+                         selection="#{filter.content.toRoleChooser.selected}" scrollRows="10" scrollable="true" liveScroll="true"
+                         scrollHeight="200">
+
+                <p:ajax event="rowSelect" listener="#{filter.content.toRoleChooser.onSave}"
+                        oncomplete="PF('${TO_ROLE_LOWER}Selector').hide()" />
+
+                <f:facet name="header">
+                    <span class="ui-input-icon-left w-full">
+                        <i class="pi pi-search" />
+                        <p:inputText value="#{filter.content.toRoleChooser.searchTerm}" immediate="true" class="w-full">
+                            <p:ajax event="keyup" update="@parent:@parent" delay="300" />
+                        </p:inputText>
+                    </span>
+                </f:facet>
+                <p:column headerText="#{string['common.id.label']}">
+                    <h:outputText value="#{data.id}" />
+                </p:column>
+                <p:column headerText="#{string['common.name.label']}">
+                    <h:outputText value="#{data.party.name}" />
+                </p:column>
+            </p:dataTable>
+        </k:selectorDialog>
     </div>
 
 </ui:composition>
@@ -857,10 +964,10 @@ cat <<XHTML > "$WEB_DIR/view/admin/${REL_LOWER}editor.xhtml"
                             </p:inputText>
                         </span>
                     </f:facet>
-                    <p:column headerText="Id">
+                    <p:column headerText="#{string['common.id.label']}">
                         <h:outputText value="#{data.id}" />
                     </p:column>
-                    <p:column headerText="Name">
+                    <p:column headerText="#{string['common.name.label']}">
                         <h:outputText value="#{data.party.name}" />
                     </p:column>
                 </p:dataTable>
@@ -885,10 +992,10 @@ cat <<XHTML > "$WEB_DIR/view/admin/${REL_LOWER}editor.xhtml"
                             </p:inputText>
                         </span>
                     </f:facet>
-                    <p:column headerText="Id">
+                    <p:column headerText="#{string['common.id.label']}">
                         <h:outputText value="#{data.id}" />
                     </p:column>
-                    <p:column headerText="Name">
+                    <p:column headerText="#{string['common.name.label']}">
                         <h:outputText value="#{data.party.name}" />
                     </p:column>
                 </p:dataTable>
