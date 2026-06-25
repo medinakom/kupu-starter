@@ -165,7 +165,7 @@ echo "Removed XHTML files."
 # 3. Remove Menu Entry
 MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
-    sed -i "/value=\"${REL_CAP}\"/d" "$MENU_FILE"
+    sed -i "/Navigator\.open('${REL_CAP}',/d" "$MENU_FILE"
     echo "Removed menu entry from $MENU_FILE"
 fi
 
@@ -187,4 +187,16 @@ if [ -f "$MODULE_FILE" ]; then
     echo "Removed relationship type registration from $MODULE_FILE"
 fi
 
-echo "Relationship ${REL_CAP} deleted successfully."
+# 6. Cleanup i18n properties
+RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
+EN_PROPS_FILE="$RES_DIR/string_en.properties"
+ID_PROPS_FILE="$RES_DIR/string_id.properties"
+
+for file in "$EN_PROPS_FILE" "$ID_PROPS_FILE"; do
+    if [ -f "$file" ]; then
+        echo "Cleaning up i18n properties in $file"
+        sed -i "/^${REL_LOWER}\./d" "$file"
+    fi
+done
+
+echo "Relationship ${REL_CAP} deleted successfully." 
