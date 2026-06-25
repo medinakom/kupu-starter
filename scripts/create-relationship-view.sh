@@ -740,16 +740,16 @@ cat <<XHTML > "$COMP_DIR/list/${REL_LOWER}list.xhtml"
 
     <ui:decorate template="/WEB-INF/resources/core/base/table.xhtml">
         <ui:define name="columns">
-            <p:column headerText="${FROM_ROLE_CAP}">
+            <p:column headerText="#{string['${REL_LOWER}.fromRole.label']}">
                 <h:outputText value="#{data.fromRole.party.name}" />
             </p:column>
-            <p:column headerText="${TO_ROLE_CAP}">
+            <p:column headerText="#{string['${REL_LOWER}.toRole.label']}">
                 <h:outputText value="#{data.toRole.party.name}" />
             </p:column>
-            <p:column headerText="Since">
+            <p:column headerText="#{string['${REL_LOWER}.fromDate.label']}">
                 <h:outputText value="#{data.fromDate}" />
             </p:column>
-            <p:column headerText="Until">
+            <p:column headerText="#{string['${REL_LOWER}.thruDate.label']}">
                 <h:outputText value="#{data.thruDate}" />
             </p:column>
         </ui:define>
