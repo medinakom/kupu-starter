@@ -8,6 +8,24 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
 CONFIG_FILE="$PROJECT_ROOT/.generator-config"
 
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo "Kupu Application Module Generator"
+    echo "Usage: $(basename "$0") [module_name] [table_prefix]"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Display this help message"
+    echo ""
+    echo "Arguments:"
+    echo "  module_name   Name of the module (lowercase). If omitted, the script will prompt for it."
+    echo "  table_prefix  Database table prefix. If omitted, defaults to uppercase of module_name."
+    echo ""
+    echo "Examples:"
+    echo "  $(basename "$0") inventory        # Create 'inventory' module with table prefix 'INVENTORY'"
+    echo "  $(basename "$0") accounting ACT   # Create 'accounting' module with table prefix 'ACT'"
+    echo "  $(basename "$0")                  # Prompt for module name and details interactively"
+    exit 0
+fi
+
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "Error: .generator-config not found at $CONFIG_FILE. Are you in a Kupu application directory?"
     exit 1
@@ -50,14 +68,13 @@ fi
 
 MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/.*/\L&/; s/./\U&/')
 PKG_PATH=$(echo "$BASE_PACKAGE" | tr . /)
-MODULE_PREFIX=$(echo "$BASE_PACKAGE" | awk -F. '{print $NF}')
 
 # Define paths
 FULL_PKG="$BASE_PACKAGE.$MODULE_NAME"
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/$MODULE_PREFIX/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_PREFIX/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 
 echo "Creating directory structure for module: $MODULE_NAME..."
 mkdir -p "$JAVA_DIR"/{entity,dao,view/admin,view/converter,view/event,view/filter,view/list,service,api,event}
@@ -95,7 +112,6 @@ public class ${MODULE_CAP}Navigator extends PageNavigator implements Serializabl
     @Override
     protected Class<? extends Page> pageMap(String pageId) {
         switch(pageId) {            
-            case "Home": return null;
             default: return null;
         }
     }
@@ -112,9 +128,6 @@ echo "$MODULE_NAME.module.title=$MODULE_TITLE" > "$RES_DIR/string_id.properties"
 # Menu component
 cat <<EOF > "$COMP_DIR/module-menu.xhtml"
 <ui:composition xmlns:ui="jakarta.faces.facelets" xmlns:p="primefaces">
-    <p:menuitem value="$MODULE_TITLE Home" icon="pi pi-home"
-                actionListener="#{${MODULE_NAME}Navigator.open('Home', '')}"
-                immediate="true" />
 </ui:composition>
 EOF
 
@@ -134,7 +147,7 @@ cat <<EOF > "$WEB_DIR/index.xhtml"
     </f:metadata>
 
     <ui:define name="module-menu">
-        <ui:include src="/WEB-INF/resources/$MODULE_PREFIX/$MODULE_NAME/module-menu.xhtml" />
+        <ui:include src="/WEB-INF/resources/$MODULE_NAME/module-menu.xhtml" />
     </ui:define>
 
     <ui:define name="content">

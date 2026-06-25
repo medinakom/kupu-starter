@@ -26,8 +26,11 @@ uploads/
 
 # IDE files
 nb-configuration.xml
+faces-config.NavData
 
 # Binary/Local DB files
+*.pid
+*.trace.db
 
 # Dependencies
 src/main/webapp/WEB-INF/lib/*

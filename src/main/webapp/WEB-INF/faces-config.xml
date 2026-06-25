@@ -34,7 +34,7 @@
         </locale-config>
         <resource-bundle>
             <base-name>
-                id.my.mdn.kupu.core.local.view.util.DatabaseResourceBundle
+                id.my.mdn.kupu.core.locale.view.util.DatabaseResourceBundle
             </base-name>
             <var>string</var>
         </resource-bundle>

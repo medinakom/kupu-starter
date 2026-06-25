@@ -76,6 +76,7 @@ public class VerifyPagesTest {
             Assertions.fail("Some pages are missing their view files:\n" + missingViews.toString());
         }
     }
+
     private String calculateModulePath(Class<?> pageClass) {
         String pkgName = pageClass.getPackage().getName();
         if (pkgName.contains(".view")) {

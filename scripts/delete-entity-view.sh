@@ -27,6 +27,7 @@ if [ -z "$MODULE_NAME" ] || [ -z "$ENTITY_NAME" ]; then
 fi
 
 ENTITY_CAP=$(echo "$ENTITY_NAME" | sed 's/./\U&/')
+ENTITY_LABEL=$(echo "${ENTITY_CAP}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
 ENTITY_LOWER=$(echo "$ENTITY_NAME" | sed 's/./\L&/')
 ENTITY_FILE_BASE=$(echo "$ENTITY_NAME" | tr '[:upper:]' '[:lower:]')
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
@@ -35,6 +36,14 @@ PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 VIEW_BASE_DIR="src/main/webapp/$MODULE_NAME"
 COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
+
+# Detect hierarchical entity (same logic as create-entity-view.sh)
+LIST_SUFFIX="List"
+ENTITY_FILE=$(find src/main/java -name "${ENTITY_CAP}.java" | head -n 1)
+if [ -n "$ENTITY_FILE" ] && grep -q "HierarchicalEntity" "$ENTITY_FILE"; then
+    LIST_SUFFIX="Tree"
+    echo "Auto-detected HierarchicalEntity — using '${LIST_SUFFIX}' suffix."
+fi
 
 FILES=(
     # Entity file
@@ -46,12 +55,12 @@ FILES=(
     "$JAVA_DIR/view/filter/${ENTITY_CAP}Filter.java"
     "$JAVA_DIR/view/converter/${ENTITY_CAP}Converter.java"
     "$JAVA_DIR/view/converter/${ENTITY_CAP}ListConverter.java"
-    "$JAVA_DIR/view/list/${ENTITY_CAP}List.java"
+    "$JAVA_DIR/view/list/${ENTITY_CAP}${LIST_SUFFIX}.java"
     # Main XHTML pages
     "$VIEW_BASE_DIR/view/${ENTITY_FILE_BASE}.xhtml"
     "$VIEW_BASE_DIR/view/admin/${ENTITY_FILE_BASE}editor.xhtml"
     # Component XHTML files
-    "$COMP_DIR/list/${ENTITY_FILE_BASE}list.xhtml"
+    "$COMP_DIR/list/${ENTITY_FILE_BASE}$(echo "$LIST_SUFFIX" | tr '[:upper:]' '[:lower:]').xhtml"
     "$COMP_DIR/filter/${ENTITY_FILE_BASE}-filterui.xhtml"
     "$COMP_DIR/filter/meta/${ENTITY_FILE_BASE}-filterui.xhtml"
 )
@@ -75,19 +84,25 @@ if [ ! -f "$NAVIGATOR_FILE" ]; then
 fi
 
 if [ -f "$NAVIGATOR_FILE" ]; then
+    if grep -q "case \"${ENTITY_LABEL}\":" "$NAVIGATOR_FILE"; then
+        sed -i "/case \"${ENTITY_LABEL}\":/d" "$NAVIGATOR_FILE"
+        echo "Removed ${ENTITY_LABEL} from $NAVIGATOR_FILE"
+    fi
     if grep -q "case \"${ENTITY_CAP}\":" "$NAVIGATOR_FILE"; then
-        # Use simple grep to remove the line containing the case
         sed -i "/case \"${ENTITY_CAP}\":/d" "$NAVIGATOR_FILE"
         echo "Removed ${ENTITY_CAP} from $NAVIGATOR_FILE"
-        
-        # Clean up double blank lines that might have been left behind
-        sed -i '/^$/N;/^\n$/D' "$NAVIGATOR_FILE"
     fi
+    # Clean up double blank lines that might have been left behind
+    sed -i '/^$/N;/^\n$/D' "$NAVIGATOR_FILE"
 fi
 
 # Remove from Menu
 MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
+    if grep -q "value=\"${ENTITY_LABEL}\"" "$MENU_FILE"; then
+        sed -i "/value=\"${ENTITY_LABEL}\"/d" "$MENU_FILE"
+        echo "Removed ${ENTITY_LABEL} from $MENU_FILE"
+    fi
     if grep -q "value=\"${ENTITY_CAP}\"" "$MENU_FILE"; then
         sed -i "/value=\"${ENTITY_CAP}\"/d" "$MENU_FILE"
         echo "Removed ${ENTITY_CAP} from $MENU_FILE"
@@ -131,3 +146,15 @@ if 'acls' in data:
         echo "Please manually remove ACL entries for: $MODULE_NAME.$ENTITY_LOWER_CAMEL.*"
     fi
 fi
+
+# Remove entity entries from i18n properties files
+PROPS_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
+for PROPS_FILE in "$PROPS_DIR/string_en.properties" "$PROPS_DIR/string_id.properties"; do
+    if [ -f "$PROPS_FILE" ]; then
+        BEFORE=$(grep -c "^${ENTITY_LOWER}\." "$PROPS_FILE" 2>/dev/null || echo 0)
+        if [ "$BEFORE" -gt 0 ]; then
+            sed -i "/^${ENTITY_LOWER}\./d" "$PROPS_FILE"
+            echo "Removed $BEFORE entries with prefix '${ENTITY_LOWER}.' from $PROPS_FILE"
+        fi
+    fi
+done

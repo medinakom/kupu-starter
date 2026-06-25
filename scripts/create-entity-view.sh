@@ -28,7 +28,27 @@ IS_HIERARCHICAL=false
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --no-acl) SKIP_ACL=true ;;
-        --hierarchical|-h) IS_HIERARCHICAL=true ;;
+        --hierarchical|-H) IS_HIERARCHICAL=true ;;
+        -h|--help)
+            echo "Kupu Application Entity View Generator"
+            echo "Usage: $(basename "$0") <sub_module_name> <entity_name> [entity_package] [options]"
+            echo ""
+            echo "Options:"
+            echo "  -h, --help           Display this help message"
+            echo "  --no-acl             Skip access control list (ACL) generation"
+            echo "  --hierarchical, -H   Generate hierarchical entity views"
+            echo ""
+            echo "Arguments:"
+            echo "  sub_module_name      Name of the target sub-module (lowercase)"
+            echo "  entity_name          Name of the JPA Entity class (CamelCase)"
+            echo "  entity_package       Java package for the entity (optional, auto-discovered if file exists)"
+            echo ""
+            echo "Examples:"
+            echo "  $(basename "$0") inventory Product id.my.mdn.kupu.app.inventory.entity"
+            echo "  $(basename "$0") inventory Product --no-acl"
+            echo "  $(basename "$0") core Category --hierarchical"
+            exit 0
+            ;;
         *) 
             if [ -z "$SUB_MODULE" ]; then SUB_MODULE=$1
             elif [ -z "$ENTITY_NAME" ]; then ENTITY_NAME=$1
@@ -40,13 +60,15 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [ -z "$SUB_MODULE" ] || [ -z "$ENTITY_NAME" ]; then
-    echo "Usage: ./create-entity-view.sh <sub_module_name> <entity_name> [entity_package] [--no-acl]"
+    echo "Usage: $(basename "$0") <sub_module_name> <entity_name> [entity_package] [options]"
+    echo "Run '$(basename "$0") --help' for details and examples."
     exit 1
 fi
 
 MODULE_NAME=$SUB_MODULE
 
 ENTITY_CAP=$(echo "$ENTITY_NAME" | sed 's/./\U&/')
+ENTITY_LABEL=$(echo "${ENTITY_CAP}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
 ENTITY_LOWER_CAMEL=$(echo "$ENTITY_NAME" | sed 's/./\L&/')
 ENTITY_FILE_BASE=$(echo "$ENTITY_NAME" | tr '[:upper:]' '[:lower:]')
 ENTITY_UPPER=$(echo "$ENTITY_NAME" | tr '[:lower:]' '[:upper:]')
@@ -84,7 +106,7 @@ mkdir -p "$(dirname "$ENTITY_FILE")"
 mkdir -p "$JAVA_DIR"/{entity,dao,view/admin,view/converter,view/event,view/filter,view/list,view/misc,service,api,event}
 mkdir -p "$RES_DIR"
 mkdir -p "$VIEW_BASE_DIR$VIEW_NS_PATH"/view/admin
-mkdir -p "$COMP_DIR"/{list,filter}/meta
+mkdir -p "$COMP_DIR"/list "$COMP_DIR"/filter/meta
 
 # Get Table Prefix
 TABLE_PREFIX=""
@@ -134,7 +156,11 @@ if [ -f "$ENTITY_FILE" ]; then
 
             if [ "$SHOULD_INCLUDE" = true ]; then
                 if [ "$HAS_MANY_TO_ONE" = true ]; then
-                    FIELDS_ARRAY+=("$TYPE:$NAME:MTO")
+                    if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then
+                        FIELDS_ARRAY=("${TYPE}:${NAME}:MTO" "${FIELDS_ARRAY[@]}")
+                    else
+                        FIELDS_ARRAY+=("$TYPE:$NAME:MTO")
+                    fi
                 else
                     FIELDS_ARRAY+=("$TYPE:$NAME:STD")
                 fi
@@ -245,6 +271,9 @@ with open(path, "w") as f: f.write(content)
 fi
 
 if [ ${#FIELDS_ARRAY[@]} -eq 0 ]; then
+    if [ "$IS_HIERARCHICAL" = true ]; then
+        FIELDS_ARRAY+=("${ENTITY_CAP}:parent:MTO")
+    fi
     FIELDS_ARRAY+=("String:name:STD")
 fi
 
@@ -266,11 +295,22 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.TableGenerator;
+import id.my.mdn.kupu.core.base.view.annotation.SorterField;
+import id.my.mdn.kupu.core.base.view.annotation.SorterFields;
+import id.my.mdn.kupu.core.externable.annotation.ExternableColumn;
+import id.my.mdn.kupu.core.externable.annotation.ExternableEntity;
 import java.io.Serializable;
 import java.util.Objects;
 
 @Entity
 @Table(name = "${TABLE_PREFIX}_${ENTITY_UPPER}")
+@SorterFields({
+    @SorterField(value = "name", label = "string['${ENTITY_LOWER_CAMEL}.name.label']", sort = SorterField.Sort.MANUAL)
+})
+@ExternableEntity(columns = {$(if [ "$IS_HIERARCHICAL" = true ]; then echo "
+    @ExternableColumn(field = \"parent.name\", name = \"Parent\"),"; fi)
+    @ExternableColumn(field = "name", name = "string['${ENTITY_LOWER_CAMEL}.name.label']")
+})
 public class ${ENTITY_CAP} implements Serializable$(if [ "$IS_HIERARCHICAL" = true ]; then echo ", HierarchicalEntity<${ENTITY_CAP}>"; fi) {
 
     @Id
@@ -361,6 +401,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Predicate;
 
@@ -374,31 +415,43 @@ public class ${ENTITY_CAP}Facade extends ${FACADE_BASE_CLASS}<${ENTITY_CAP}> {
     public ${ENTITY_CAP}Facade() { super(${ENTITY_CAP}.class); }
 JAVA
 
-# Generate applyFilter cases for MTO fields
-MTO_CASES=""
+# Generate applyFilter and orderExpression cases
+APPLY_FILTER_CASES=""
+ORDER_CASES=""
 for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [ "$NAME" = "id" ]; then continue; fi
     if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
     if [ "$MTO_FLAG" = "MTO" ]; then
-        MTO_CASES+="            case \"$NAME\":"$'\n'"                return cb.equal(froms[0].get(\"$NAME\"), filterValue);"$'\n'
+        APPLY_FILTER_CASES+="            case \"$NAME\":"$'\n'"                return cb.equal(from[0].get(\"$NAME\"), filterValue);"$'\n'
+    elif [ "$TYPE" = "String" ]; then
+        APPLY_FILTER_CASES+="            case \"$NAME\":"$'\n'"                String ${NAME}Query = (String) filterValue;"$'\n'"                if (${NAME}Query == null || ${NAME}Query.isEmpty()) { return null; }"$'\n'"                Expression<String> ${NAME}Expr = cb.literal(\"%\" + ${NAME}Query.toUpperCase() + \"%\");"$'\n'"                return cb.like(cb.upper(from[0].get(\"$NAME\")), ${NAME}Expr);"$'\n'
+        ORDER_CASES+="            case \"$NAME\":"$'\n'"                return from[0].get(\"$NAME\");"$'\n'
+    else
+        ORDER_CASES+="            case \"$NAME\":"$'\n'"                return from[0].get(\"$NAME\");"$'\n'
     fi
 done
 
-if [ -n "$MTO_CASES" ]; then
 cat <<JAVA >> "$JAVA_DIR/dao/${ENTITY_CAP}Facade.java"
 
     @Override
-    protected Predicate applyFilter(String filterName, Object filterValue, CriteriaQuery cq, From... froms) {
+    protected Predicate applyFilter(String filterName, Object filterValue, CriteriaQuery cq, From... from) {
         CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
         switch (filterName) {
-$MTO_CASES            default:
-                return super.applyFilter(filterName, filterValue, cq, froms);
+$APPLY_FILTER_CASES            default:
+                return super.applyFilter(filterName, filterValue, cq, from);
         }
     }
-JAVA
-fi
 
-echo "}" >> "$JAVA_DIR/dao/${ENTITY_CAP}Facade.java"
+    @Override
+    protected Expression orderExpression(String field, From... from) {
+        switch (field) {
+$ORDER_CASES            default:
+                return super.orderExpression(field, from);
+        }
+    }
+}
+JAVA
 
 # 3. Generate Filter Content
 {
@@ -558,115 +611,7 @@ $(if [ "$SKIP_ACL" = false ]; then echo -ne "
 }
 JAVA
 
-# 4.5 Generate Lazy Components (For Lazy Selectors)
-for field in "${FIELDS_ARRAY[@]}"; do
-    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
-    if [ "$MTO_FLAG" = "MTO" ]; then
-        # Find the package for the target entity
-        TYPE_PKG="id.my.mdn.kupu.core.base.entity"
-        FOUND_ENTITY=$(find src/main/java -name "${TYPE}.java" -exec grep -l "^package " {} \; | head -n 1)
-        if [ -n "$FOUND_ENTITY" ]; then
-            TYPE_PKG=$(grep "^package " "$FOUND_ENTITY" | sed 's/package \(.*\);/\1/')
-        fi
-        
-        # Generation block for TYPE LazyList
-        if [ ! -f "$JAVA_DIR/view/misc/${TYPE}LazyList.java" ]; then
-            cat <<JAVA > "$JAVA_DIR/view/misc/${TYPE}LazyList.java"
-package ${BASE_PACKAGE}.view.misc;
 
-import ${APP_PACKAGE}.*.dao.${TYPE}Facade; // FIX IMPORT IF NEEDED
-import ${TYPE_PKG}.${TYPE};
-import ${APP_PACKAGE}.*.view.filter.${TYPE}Filter; // FIX IMPORT IF NEEDED
-import id.my.mdn.kupu.core.base.dao.AbstractFacade;
-import id.my.mdn.kupu.core.base.util.FilterTypes;
-import id.my.mdn.kupu.core.base.view.widget.AbstractLazyList;
-import id.my.mdn.kupu.core.base.view.widget.Filter;
-import id.my.mdn.kupu.core.base.view.widget.SorterData;
-import jakarta.enterprise.context.Dependent;
-import jakarta.inject.Inject;
-import java.util.List;
-import java.util.Map;
-
-@Dependent
-public class ${TYPE}LazyList extends AbstractLazyList<${TYPE}> {
-
-    @Inject
-    private ${TYPE}Facade dao;
-
-    @Inject
-    private ${TYPE}Filter filterContent;
-
-    public ${TYPE}LazyList() {
-        super(${TYPE}.class);
-        this.filter = new Filter(filterContent);
-    }
-
-    @Override
-    protected List<${TYPE}> findAllInternal(Integer startPosition, Integer maxResult, Map<String, Object> parameters, List<FilterTypes.FilterData> filters, List<SorterData> sorters, List<${TYPE}> defaultReturn, AbstractFacade.DefaultChecker defaultChecker) {
-        return dao.findAll(startPosition, maxResult,
-                parameters, filter.getValues(), getSorters(),
-                defaultList.get(), defaultChecker);
-    }
-
-    @Override
-    protected Long countAllInternal(Map<String, Object> parameters, List<FilterTypes.FilterData> filters, Long defaultCount, AbstractFacade.DefaultChecker defaultChecker) {
-        return dao.countAll(parameters, filter.getValues(), defaultCount, defaultChecker);
-    }
-}
-JAVA
-        
-            # Patch wildcard imports
-            TYPE_FACADE_IMPORT=$(find src/main/java -name "${TYPE}Facade.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${TYPE}Facade';/')
-            if [ -n "$TYPE_FACADE_IMPORT" ]; then sed -i "s|import ${APP_PACKAGE}.*.dao.${TYPE}Facade; // FIX IMPORT IF NEEDED|$TYPE_FACADE_IMPORT|" "$JAVA_DIR/view/misc/${TYPE}LazyList.java"; fi
-            
-            TYPE_FILTER_IMPORT=$(find src/main/java -name "${TYPE}Filter.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${TYPE}Filter';/')
-            if [ -n "$TYPE_FILTER_IMPORT" ]; then sed -i "s|import ${APP_PACKAGE}.*.view.filter.${TYPE}Filter; // FIX IMPORT IF NEEDED|$TYPE_FILTER_IMPORT|" "$JAVA_DIR/view/misc/${TYPE}LazyList.java"; fi
-        fi
-        
-        # Generation block for TYPE LazyChooser
-        if [ ! -f "$JAVA_DIR/view/misc/${TYPE}LazyChooser.java" ]; then
-            cat <<JAVA > "$JAVA_DIR/view/misc/${TYPE}LazyChooser.java"
-package ${BASE_PACKAGE}.view.misc;
-
-import ${TYPE_PKG}.${TYPE};
-import id.my.mdn.kupu.core.base.util.FilterTypes.FilterData;
-import id.my.mdn.kupu.core.base.view.widget.InlineEditor;
-import jakarta.enterprise.context.Dependent;
-import jakarta.inject.Inject;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
-@Dependent
-public class ${TYPE}LazyChooser extends InlineEditor<${TYPE}> implements Serializable {
-
-    @Inject
-    private ${TYPE}LazyList list;
-
-    private String searchTerm;
-
-    @Override
-    protected void reload(Context ctx) {   
-        list.getFilter().setStaticFilter(this::getFilters);    
-        list.init();
-    }
-
-    private List<FilterData> getFilters() {
-        List<FilterData> filters = new ArrayList<>();
-        if (searchTerm != null && !searchTerm.isBlank()) {
-            filters.add(FilterData.by("name", searchTerm));
-        }
-        return filters;
-    }
-
-    public ${TYPE}LazyList getList() { return list; }
-    public String getSearchTerm() { return searchTerm; }
-    public void setSearchTerm(String searchTerm) { this.searchTerm = searchTerm; }
-}
-JAVA
-        fi
-    fi
-done
 
 # 5. Generate Editor Page Controller
 cat <<JAVA > "$JAVA_DIR/view/admin/${ENTITY_CAP}EditorPage.java"
@@ -677,6 +622,7 @@ import ${ENTITY_PKG}.${ENTITY_CAP};
 $(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     if [ "$MTO_FLAG" = "MTO" ]; then
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         CHOOSER_IMPORT=$(find src/main/java -name "${TYPE}LazyChooser.java" -exec grep -l "^package " {} \; | head -n 1 | xargs grep "^package " | sed 's/package \(.*\);/import \1.'${TYPE}LazyChooser';/')
         if [ -n "$CHOOSER_IMPORT" ]; then echo "$CHOOSER_IMPORT"; else echo "import ${BASE_PACKAGE}.view.misc.${TYPE}LazyChooser;"; fi
         
@@ -700,9 +646,11 @@ public class ${ENTITY_CAP}EditorPage extends FormPage<${ENTITY_CAP}> {
     @Inject
     private ${ENTITY_CAP}Facade dao;
 
-$(for field in "${FIELDS_ARRAY[@]}"; do
+$(if [ "$IS_HIERARCHICAL" = true ]; then echo "    private ${ENTITY_CAP} parent;
+"; fi)$(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     if [ "$MTO_FLAG" = "MTO" ]; then
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         NAME_CAP=$(echo "${NAME}" | sed 's/./\U&/')
         echo "    @Inject"
         echo "    private ${TYPE}LazyChooser ${NAME}Chooser;"
@@ -717,6 +665,7 @@ done)
 $(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     if [ "$MTO_FLAG" = "MTO" ]; then
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         echo "        ${NAME}Chooser.setContext(this::ctx${TYPE}Chooser);"
         echo "        ${NAME}Chooser.setSaveListener(this::onSelect${TYPE});"
     fi
@@ -726,6 +675,7 @@ done)
 $(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     if [ "$MTO_FLAG" = "MTO" ]; then
+        if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
         echo "    private Map<String, Object> ctx${TYPE}Chooser() {"
         echo "        Map<String, Object> context = new HashMap<>();"
         echo "        return context;"
@@ -739,7 +689,18 @@ done)
 
     @Override
     protected ${ENTITY_CAP} newEntity() {
+        $(if [ "$IS_HIERARCHICAL" = true ]; then echo "
+        ${ENTITY_CAP} newEntity = new ${ENTITY_CAP}();
+        if (parent != null) {
+            newEntity.setParent(parent);
+            parent.getChildren().add(newEntity);
+        }
+        return newEntity;
+        "
+        else echo "
         return new ${ENTITY_CAP}();
+        "
+        fi)
     }
 
     @Override
@@ -751,7 +712,15 @@ done)
     protected Result<String> edit(${ENTITY_CAP} entity) {
         return dao.edit(entity);
     }
-}
+$(if [ "$IS_HIERARCHICAL" = true ]; then echo "
+    public ${ENTITY_CAP} getParent() {
+        return parent;
+    }
+
+    public void setParent(${ENTITY_CAP} parent) {
+        this.parent = parent;
+    }
+"; fi)}
 JAVA
 
 # 6. Generate Main Page Controller
@@ -791,7 +760,14 @@ public class ${ENTITY_CAP}Page extends Page implements Serializable {
 
     @Creator(of = "dataView")
     public void openCreator() {
-        gotoChild(${ENTITY_CAP}EditorPage.class).open();
+        $(if [ "$IS_HIERARCHICAL" = true ]; then
+            echo "gotoChild(${ENTITY_CAP}EditorPage.class)
+                .addParam(\"parent\")
+                .withValues(dataView.getSelected())
+                .open();"
+          else
+            echo "gotoChild(${ENTITY_CAP}EditorPage.class).open();"
+          fi)
     }
 
     @Editor(of = "dataView")
@@ -938,6 +914,7 @@ cat <<XHTML > "$VIEW_BASE_DIR$VIEW_NS_PATH/view/admin/${ENTITY_FILE_BASE}editor.
         <ui:param name="nofilter" value="true" />
 
         <f:viewParam name="entity" value="#{viewPage.entity}" converter="${ENTITY_CAP}Converter" transient="true" />
+$(if [ "$IS_HIERARCHICAL" = true ]; then echo "        <f:viewParam name=\"parent\" value=\"#{viewPage.parent}\" converter=\"${ENTITY_CAP}Converter\" transient=\"true\" />"; fi)
 
         <f:viewAction action="#{viewPage.load}" />
     </f:metadata>
@@ -954,12 +931,14 @@ $(for field in "${FIELDS_ARRAY[@]}"; do
     if [[ "$NAME" != "id" ]]; then
         PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
         echo "                        <div class=\"form-field\">"
-        echo "                            <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
+        if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then
+            echo "                            <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
+        else
+            echo "                            <p:outputLabel for=\"$NAME\" value=\"#{string['${ENTITY_LOWER_CAMEL}.${NAME}.label']}\" />"
+        fi
         if [ "$MTO_FLAG" = "MTO" ]; then
             if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then
-                echo "                            <k:lazySelector id=\"$NAME\""
-                echo "                                            value=\"#{viewPage.entity.$NAME ne null ? viewPage.entity.$NAME.name : ''}\""
-                echo "                                            selector=\"${TYPE}Selector\" update=\"#{component.clientId}\" required=\"true\" />"
+                echo "                            <p:inputText id=\"$NAME\" value=\"#{viewPage.entity.$NAME ne null ? viewPage.entity.$NAME.name : null}\" readonly=\"true\" class=\"block w-full\" />"
             else
                 echo "                            <k:lazySelector id=\"$NAME\""
                 echo "                                            value=\"#{viewPage.entity.$NAME ne null ? viewPage.entity.$NAME.name : ''}\""
@@ -997,6 +976,7 @@ done)
 $(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
     if [ "$MTO_FLAG" = "MTO" ]; then
+        if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then continue; fi
         echo "        <h:form>"
         echo "            <k:selectorDialog selector=\"${TYPE}Selector\" widgetVar=\"${NAME}Selector\" chooser=\"#{viewPage.${NAME}Chooser}\""
         echo "                              styleClass=\"w-5\">"
@@ -1042,8 +1022,11 @@ cat <<XHTML > "$COMP_DIR/list/${ENTITY_FILE_BASE}$(echo "$LIST_SUFFIX" | tr '[:u
         <ui:define name="columns">
 $(for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then
+        continue
+    fi
     PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
-    echo "            <p:column headerText=\"$PRETTY_NAME\">"
+    echo "            <p:column headerText=\"#{string['${ENTITY_LOWER_CAMEL}.${NAME}.label']}\">"
     if [ "$MTO_FLAG" = "MTO" ]; then
         echo "                <h:outputText value=\"#{data.$NAME.name}\" />"
     else
@@ -1071,7 +1054,7 @@ $(for field in "${FIELDS_ARRAY[@]}"; do
     if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
     PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
     echo "    <div class=\"filter-field\">"
-    echo "        <p:outputLabel for=\"$NAME\" value=\"$PRETTY_NAME\" />"
+    echo "        <p:outputLabel for=\"$NAME\" value=\"#{string['${ENTITY_LOWER_CAMEL}.${NAME}.label']}\" />"
     if [ "$MTO_FLAG" = "MTO" ]; then
         echo "        <k:lazySelector id=\"$NAME\""
         echo "                        value=\"#{filter.content.$NAME ne null ? filter.content.$NAME.name : ''}\""
@@ -1138,20 +1121,20 @@ if [ ! -f "$NAVIGATOR_FILE" ]; then
 fi
 
 if [ -f "$NAVIGATOR_FILE" ]; then
-    if ! grep -q "case \"${ENTITY_CAP}\":" "$NAVIGATOR_FILE"; then
-        # Use more flexible pattern to find switch statement start
-        sed -i "/switch.*(pageId).* {/a \            case \"${ENTITY_CAP}\": return ${BASE_PACKAGE}.view.${ENTITY_CAP}Page.class;" "$NAVIGATOR_FILE"
-        echo "Registered ${ENTITY_CAP} in $NAVIGATOR_FILE"
+    if ! grep -q "case \"${ENTITY_LABEL}\":" "$NAVIGATOR_FILE"; then
+        # Insert directly on top of (above) the default case
+        sed -i "/default:/i \            case \"${ENTITY_LABEL}\": return ${BASE_PACKAGE}.view.${ENTITY_CAP}Page.class;" "$NAVIGATOR_FILE"
+        echo "Registered ${ENTITY_LABEL} in $NAVIGATOR_FILE"
     fi
 fi
 
 # 12. Register in Menu
 MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
-    if ! grep -q "value=\"${ENTITY_CAP}\"" "$MENU_FILE"; then
+    if ! grep -q "value=\"${ENTITY_LABEL}\"" "$MENU_FILE"; then
         # Insert before the closing tag, ensuring correct formatting
-        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${ENTITY_CAP}\" icon=\"pi pi-file\" actionListener=\"#{${MODULE_NAME}Navigator.open('${ENTITY_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
-        echo "Registered ${ENTITY_CAP} in $MENU_FILE"
+        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${ENTITY_LABEL}\" icon=\"pi pi-file\" actionListener=\"#{${MODULE_NAME}Navigator.open('${ENTITY_LABEL}', '')}\" immediate=\"true\" />" "$MENU_FILE"
+        echo "Registered ${ENTITY_LABEL} in $MENU_FILE"
     fi
 fi
 
@@ -1206,6 +1189,23 @@ if not exists:
         fi
     done
 fi
+
+# 12. Append Localization Properties
+for field in "${FIELDS_ARRAY[@]}"; do
+    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [[ "$NAME" != "id" ]]; then
+        if [[ "$NAME" == "parent" && "$IS_HIERARCHICAL" == "true" ]]; then continue; fi
+        PRETTY_NAME=$(echo "$NAME" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^./\U&/')
+        KEY="${ENTITY_LOWER_CAMEL}.${NAME}.label"
+        for prop_file in "$RES_DIR/string_en.properties" "$RES_DIR/string_id.properties"; do
+            if [ -f "$prop_file" ]; then
+                if ! grep -q "^${KEY}=" "$prop_file"; then
+                    echo "${KEY}=${PRETTY_NAME}" >> "$prop_file"
+                fi
+            fi
+        done
+    fi
+done
 
 chmod +x "$0"
 echo "Successfully generated application entity components in $BASE_PACKAGE"

@@ -17,18 +17,20 @@ APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
 
 cd "$PROJECT_ROOT"
 
-if [ "$#" -lt 3 ]; then
-    echo "Usage: ./create-role-view.sh <module_name> <role_name> <Person|Organization>"
-    echo "Example: ./create-role-view.sh pelanggan Merchant Organization"
+if [ "$#" -lt 2 ]; then
+    echo "Usage: ./create-role-view.sh <module_name> <role_name> [Person|Organization]"
+    echo "  Omit the 3rd argument to generate a polymorphic role (both Person and Organization)."
+    echo "Example (single): ./create-role-view.sh pelanggan Merchant Organization"
+    echo "Example (both):   ./create-role-view.sh purchase Supplier"
     exit 1
 fi
 
 MODULE_NAME=$1
 ROLE_NAME=$2
-PARTY_TYPE=$3
+PARTY_TYPE=${3:-Both}
 
-if [[ "$PARTY_TYPE" != "Person" && "$PARTY_TYPE" != "Organization" ]]; then
-    echo "Error: party_type must be Person or Organization"
+if [[ "$PARTY_TYPE" != "Person" && "$PARTY_TYPE" != "Organization" && "$PARTY_TYPE" != "Both" ]]; then
+    echo "Error: party_type must be Person, Organization, or omitted (defaults to Both)"
     exit 1
 fi
 
@@ -37,6 +39,7 @@ ROLE_LOWER=$(echo "$ROLE_NAME" | sed 's/./\L&/')
 ROLE_FILE_BASE=$(echo "$ROLE_NAME" | tr '[:upper:]' '[:lower:]')
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 MODULE_BEAN=$(echo "$MODULE_NAME" | sed 's/./\L&/')
+MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/./\U&/')
 
 # Define paths
 BASE_PACKAGE="$APP_PACKAGE.$MODULE_NAME"
@@ -73,16 +76,16 @@ case $PARTY_TYPE in
         FORM_CLASS="OrganizationForm"
         FORM_VAR="organizationForm"
         ;;
-    General)
+    Both)
         BASE_ENTITY="PartyRole"
         BASE_FACADE="AbstractPartyRoleFacade"
         PARTY_VAR="party"
-        EDITOR_FORM="PartyEditorForm"
         PARTY_IF="Party"
-        # No PartyForm exists, skipping form integration for general
+        FORM_CLASS=""
+        FORM_VAR=""
         ;;
     *)
-        echo "Error: party_type must be Person, Organization, or General"
+        echo "Error: party_type must be Person, Organization, or omitted (defaults to Both)"
         exit 1
         ;;
 esac
@@ -165,7 +168,9 @@ if [ -f "$ENTITY_FILE" ]; then
     echo "Validating architectural constraints for: $ROLE_CAP..."
     
     # Ensure necessary imports
-    for imp in "java.io.Serializable" "jakarta.persistence.Entity" "jakarta.persistence.Table" "java.util.ArrayList" "java.time.LocalDate" "id.my.mdn.kupu.core.base.model.EntityBuilder" "id.my.mdn.kupu.core.party.entity.${BASE_ENTITY}" "id.my.mdn.kupu.core.party.entity.${PARTY_IF}"; do
+    for imp in "java.io.Serializable" "jakarta.persistence.Entity" "jakarta.persistence.Table" "java.util.ArrayList" "java.time.LocalDate" "id.my.mdn.kupu.core.base.model.EntityBuilder" "id.my.mdn.kupu.core.party.entity.${BASE_ENTITY}" "id.my.mdn.kupu.core.party.entity.${PARTY_IF}" \
+               "id.my.mdn.kupu.core.base.view.annotation.SorterField" "id.my.mdn.kupu.core.base.view.annotation.SorterFields" \
+               "id.my.mdn.kupu.core.externable.annotation.ExternableColumn" "id.my.mdn.kupu.core.externable.annotation.ExternableEntity"; do
         if ! grep -q "import $imp;" "$ENTITY_FILE"; then
             sed -i "/package /a \import $imp;" "$ENTITY_FILE"
         fi
@@ -175,6 +180,18 @@ if [ -f "$ENTITY_FILE" ]; then
     if ! grep -q "@Entity" "$ENTITY_FILE"; then
         echo "  - Missing @Entity. Injecting..."
         sed -i '/public class/i @Entity' "$ENTITY_FILE"
+    fi
+
+    # Check @SorterFields
+    if ! grep -q "@SorterFields" "$ENTITY_FILE"; then
+        echo "  - Missing @SorterFields. Injecting..."
+        sed -i "/public class/i @SorterFields({\n    @SorterField(value = \"name\", label = \"string['${ROLE_LOWER}.name.label']\", sort = SorterField.Sort.MANUAL)\n})" "$ENTITY_FILE"
+    fi
+
+    # Check @ExternableEntity
+    if ! grep -q "@ExternableEntity" "$ENTITY_FILE"; then
+        echo "  - Missing @ExternableEntity. Injecting..."
+        sed -i "/public class/i @ExternableEntity(columns = {\n    @ExternableColumn(field = \"party.name\", name = \"string['${ROLE_LOWER}.name.label']\")\n})" "$ENTITY_FILE"
     fi
     
     # Check @Table
@@ -200,6 +217,10 @@ cat <<JAVA > "$ENTITY_FILE"
 package ${BASE_PACKAGE}.entity;
 
 import id.my.mdn.kupu.core.base.model.EntityBuilder;
+import id.my.mdn.kupu.core.base.view.annotation.SorterField;
+import id.my.mdn.kupu.core.base.view.annotation.SorterFields;
+import id.my.mdn.kupu.core.externable.annotation.ExternableColumn;
+import id.my.mdn.kupu.core.externable.annotation.ExternableEntity;
 import id.my.mdn.kupu.core.party.entity.${BASE_ENTITY};
 import id.my.mdn.kupu.core.party.entity.${PARTY_IF};
 import jakarta.persistence.Entity;
@@ -211,6 +232,12 @@ import java.util.ArrayList;
 
 @Entity
 @Table(name = "${TABLE_PREFIX}_${ROLE_CAP^^}")
+@SorterFields({
+    @SorterField(value = "name", label = "string['${ROLE_LOWER}.name.label']", sort = SorterField.Sort.MANUAL)
+})
+@ExternableEntity(columns = {
+    @ExternableColumn(field = "party.name", name = "string['${ROLE_LOWER}.name.label']")
+})
 public class ${ROLE_CAP} extends ${BASE_ENTITY} implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -242,6 +269,70 @@ JAVA
 fi
 
 # 2. Generate Facade
+if [ "$PARTY_TYPE" = "Both" ]; then
+cat <<JAVA > "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
+package ${BASE_PACKAGE}.dao;
+
+import ${BASE_PACKAGE}.entity.${ROLE_CAP};
+import id.my.mdn.kupu.core.base.dao.AbstractFacade;
+import id.my.mdn.kupu.core.base.event.ModulePostInitEvent;
+import id.my.mdn.kupu.core.base.util.Result;
+import id.my.mdn.kupu.core.party.dao.PartyRoleFacade;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.ObservesAsync;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.Predicate;
+import ${BASE_PACKAGE}.${MODULE_CAP}Module;
+
+@ApplicationScoped
+public class ${ROLE_CAP}Facade extends AbstractFacade<${ROLE_CAP}> {
+
+    @PersistenceContext(unitName = "KupuPersistenceUnit")
+    private EntityManager em;
+
+    @Inject
+    private PartyRoleFacade partyRoleFacade;
+
+    @Override protected EntityManager getEntityManager() { return em; }
+    public ${ROLE_CAP}Facade() { super(${ROLE_CAP}.class); }
+
+    protected void onPreInitModule(@ObservesAsync @ModulePostInitEvent ${MODULE_CAP}Module module) {
+        partyRoleFacade.introduceType(entityClass);
+    }
+
+    @Override
+    protected Predicate applyFilter(String filterName, Object filterValue, CriteriaQuery cq, From... from) {
+        switch (filterName) {
+            default:
+                return partyRoleFacade.applyFilter(filterName, filterValue, cq, from);
+        }
+    }
+
+    @Override
+    protected Expression orderExpression(String field, From... from) {
+        switch (field) {
+            default:
+                return partyRoleFacade.orderExpression(field, from);
+        }
+    }
+
+    @Override
+    public Result<String> create(${ROLE_CAP} entity) {
+        return partyRoleFacade.create(entity);
+    }
+
+    @Override
+    public Result<String> remove(${ROLE_CAP} entity) {
+        return partyRoleFacade.remove(entity);
+    }
+}
+JAVA
+else
 cat <<JAVA > "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
 package ${BASE_PACKAGE}.dao;
 
@@ -296,6 +387,8 @@ JAVA
 fi
 
 echo "}" >> "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
+fi
+
 
 # 2.5 Generate Filter Content
 {
@@ -461,6 +554,66 @@ $(if [ "$IS_HIERARCHICAL" = true ]; then echo "    @Override
 JAVA
 
 # 4. Generate Page Controller
+if [ "$PARTY_TYPE" = "Both" ]; then
+cat <<JAVA > "$JAVA_DIR/view/${ROLE_CAP}Page.java"
+package ${BASE_PACKAGE}.view;
+
+import ${BASE_PACKAGE}.view.list.${ROLE_CAP}${LIST_SUFFIX};
+import ${BASE_PACKAGE}.view.admin.${ROLE_CAP}EditorPage;
+import ${BASE_PACKAGE}.view.admin.${ROLE_CAP}DetailPage;
+import id.my.mdn.kupu.core.base.view.Page;
+import id.my.mdn.kupu.core.base.view.annotation.Bookmarked;
+import id.my.mdn.kupu.core.base.view.annotation.Creator;
+import id.my.mdn.kupu.core.base.view.annotation.Deleter;
+import id.my.mdn.kupu.core.base.view.annotation.Editor;
+import id.my.mdn.kupu.core.party.entity.Organization;
+import jakarta.annotation.PostConstruct;
+import jakarta.faces.view.ViewScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import java.io.Serializable;
+
+@Named(value = "${ROLE_LOWER}Page")
+@ViewScoped
+public class ${ROLE_CAP}Page extends Page implements Serializable {
+
+    @Inject
+    @Bookmarked
+    private ${ROLE_CAP}${LIST_SUFFIX} dataView;
+
+    @Override
+    @PostConstruct
+    public void init() {
+        super.init();
+    }
+
+    @Creator(of = "dataView")
+    public void openCreator() {
+        gotoChild(${ROLE_CAP}EditorPage.class)
+                .addParam("mode")
+                .withValue(Organization.class.getSimpleName())
+                .open();
+    }
+
+    @Editor(of = "dataView")
+    public void openEditor() {
+        gotoChild(${ROLE_CAP}DetailPage.class)
+                .addParam("entity")
+                .withValue(dataView.getSelected())
+                .open();
+    }
+
+    @Deleter(of = "dataView")
+    public void openDeleter() {
+        dataView.deleteSelected();
+    }
+
+    public ${ROLE_CAP}${LIST_SUFFIX} getDataView() {
+        return dataView;
+    }
+}
+JAVA
+else
 cat <<JAVA > "$JAVA_DIR/view/${ROLE_CAP}Page.java"
 package ${BASE_PACKAGE}.view;
 
@@ -501,11 +654,9 @@ public class ${ROLE_CAP}Page extends Page implements Serializable {
     public void openEditor() {
         gotoChild(${ROLE_CAP}DetailPage.class)
                 .addParam("entity")
-                .withValues(dataView.getSelected())
+                .withValue(dataView.getSelected())
                 .open();
     }
-    
-
 
     @Deleter(of = "dataView")
     public void openDeleter() {
@@ -517,8 +668,107 @@ public class ${ROLE_CAP}Page extends Page implements Serializable {
     }
 }
 JAVA
+fi
 
 # 4.5. Generate Editor Page Controller
+if [ "$PARTY_TYPE" = "Both" ]; then
+cat <<JAVA > "$JAVA_DIR/view/admin/${ROLE_CAP}EditorPage.java"
+package ${BASE_PACKAGE}.view.admin;
+
+import id.my.mdn.kupu.core.base.util.Result;
+import id.my.mdn.kupu.core.base.view.FormPage;
+import id.my.mdn.kupu.core.base.view.annotation.Bookmarked;
+import id.my.mdn.kupu.core.base.view.annotation.Form;
+import id.my.mdn.kupu.core.party.entity.Organization;
+import id.my.mdn.kupu.core.party.entity.Party;
+import id.my.mdn.kupu.core.party.entity.Person;
+import id.my.mdn.kupu.core.party.view.form.OrganizationEditorForm;
+import id.my.mdn.kupu.core.party.view.form.PersonEditorForm;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ConversationScoped;
+import jakarta.faces.event.AjaxBehaviorEvent;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import java.util.ArrayList;
+import ${BASE_PACKAGE}.dao.${ROLE_CAP}Facade;
+import ${BASE_PACKAGE}.entity.${ROLE_CAP};
+
+@Named
+@ConversationScoped
+public class ${ROLE_CAP}EditorPage extends FormPage<${ROLE_CAP}> {
+
+    @Inject
+    private ${ROLE_CAP}Facade dao;
+
+    @Bookmarked(name = "mode")
+    private String mode;
+
+    @Inject
+    @Form
+    private OrganizationEditorForm organizationEditorForm;
+
+    @Inject
+    @Form
+    private PersonEditorForm personEditorForm;
+
+    @PostConstruct
+    @Override
+    protected void init() {
+        super.init();
+    }
+
+    @Override
+    public void load() {
+        super.load();
+        if (mode.equalsIgnoreCase(Organization.class.getSimpleName())) {
+            organizationEditorForm.init((Organization) getEntity().getParty());
+            personEditorForm.setActive(false);
+        } else if (mode.equalsIgnoreCase(Person.class.getSimpleName())) {
+            personEditorForm.init((Person) getEntity().getParty());
+            organizationEditorForm.setActive(false);
+        }
+    }
+
+    public void reload(AjaxBehaviorEvent evt) {
+        entity = null;
+        load();
+    }
+
+    @Override
+    protected ${ROLE_CAP} newEntity() {
+        ${ROLE_CAP} newEntity = new ${ROLE_CAP}();
+        Party party = null;
+        if (mode.equalsIgnoreCase(Organization.class.getSimpleName())) {
+            party = Organization.builder().get();
+            newEntity.setParty(party);
+        } else if (mode.equalsIgnoreCase(Person.class.getSimpleName())) {
+            party = Person.builder().get();
+            newEntity.setParty(party);
+        } else {
+            return null;
+        }
+        party.setRoles(new ArrayList<>());
+        party.getRoles().add(newEntity);
+        return newEntity;
+    }
+
+    @Override
+    protected Result<String> save(${ROLE_CAP} entity) {
+        return dao.create(entity);
+    }
+
+    @Override
+    protected Result<String> edit(${ROLE_CAP} entity) {
+        return dao.edit(entity);
+    }
+
+    public String getMode() { return mode; }
+    public void setMode(String mode) { this.mode = mode; }
+    public OrganizationEditorForm getOrganizationEditorForm() { return organizationEditorForm; }
+    public PersonEditorForm getPersonEditorForm() { return personEditorForm; }
+}
+JAVA
+else
 {
 echo "package ${BASE_PACKAGE}.view.admin;"
 echo ""
@@ -601,6 +851,7 @@ if [ "$IS_HIERARCHICAL" = true ]; then
 fi
 echo "}"
 } > "$JAVA_DIR/view/admin/${ROLE_CAP}EditorPage.java"
+fi
 # 4.6. Generate Misc Classes (Lazy List and Chooser)
 for field in "${FIELDS_ARRAY[@]}"; do
     IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
@@ -773,7 +1024,7 @@ public class ${ROLE_CAP}ListConverter extends SelectionsConverter<${ROLE_CAP}> {
 
     @Override
     protected String getAsString(${ROLE_CAP} value) {
-        return value != null ? String.valueOf(value.getId()) : null;
+        return value != null ? value.toString() : null;
     }
 }
 JAVA
@@ -819,9 +1070,7 @@ $(if [ "$IS_HIERARCHICAL" = false ]; then echo "        <ui:param name=\"pager\"
 
     <ui:define name="content">
         <h:form id="data-frm" class="flex-grow-1 flex align-items-stretch">
-            <ui:include src="/WEB-INF/resources/${MODULE_NAME}/list/${ROLE_FILE_BASE}list.xhtml">
-                <ui:param name="dataView" value="#{viewPage.dataView}" />
-            </ui:include>
+            <ui:include src="/WEB-INF/resources/${MODULE_NAME}/list/${ROLE_FILE_BASE}list.xhtml" />
         </h:form>
     </ui:define>
 $(if [ "$IS_HIERARCHICAL" = true ]; then echo "
@@ -831,6 +1080,64 @@ $(if [ "$IS_HIERARCHICAL" = true ]; then echo "
 XHTML
 
 # 5.5. Generate Admin Editor Page XHTML
+if [ "$PARTY_TYPE" = "Both" ]; then
+ROLE_TITLE=$(echo "${ROLE_NAME}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
+cat <<XHTML > "$WEB_DIR/view/admin/${ROLE_FILE_BASE}editor.xhtml"
+<ui:composition template="/WEB-INF/templates/editor-page.xhtml" xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets" xmlns:f="jakarta.faces.core" xmlns:p="primefaces"
+                xmlns:k="http://xmlns.jcp.org/jsf/composite/kupu" xmlns:h="jakarta.faces.html"
+                xmlns:c="jakarta.tags.core">
+
+    <f:metadata>
+        <ui:param name="viewPage" value="#{${ROLE_LOWER}EditorPage}" />
+        <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
+
+        <ui:param name="primaryTitle" value="Editor ${ROLE_TITLE}" />
+
+        <ui:param name="notool" value="true" />
+        <ui:param name="nofilter" value="true" />
+
+        <f:viewParam name="entity" value="#{viewPage.entity}" converter="${ROLE_CAP}Converter" transient="true" />
+        <f:viewParam name="mode" value="#{viewPage.mode}" transient="true" />
+
+        <f:viewAction action="#{viewPage.load}" />
+    </f:metadata>
+
+    <ui:define name="content-header" />
+
+    <ui:define name="form">
+        <div class="grid w-full p-3">
+            <div class="col-12">
+                <p:card>
+                    <div class="flex justify-content-center">
+                    <p:selectOneRadio value="#{viewPage.mode}" layout="lineDirection">
+                        <f:selectItem itemLabel="Person" itemValue="Person"/>
+                        <f:selectItem itemLabel="Organization" itemValue="Organization"/>
+                        <p:ajax listener="#{viewPage.reload}" oncomplete="updateAddress()" update="@form"/>
+                    </p:selectOneRadio>
+                    </div>
+                </p:card>
+            </div>
+
+            <c:choose>
+                <c:when test="#{viewPage.mode.equals('Organization')}">
+                    <ui:decorate template="/WEB-INF/resources/core/party/organizationeditorform.xhtml"  >
+                        <ui:param name="editor" value="#{viewPage.organizationEditorForm}" />
+                    </ui:decorate>
+                </c:when>
+                <c:otherwise>
+                    <ui:decorate template="/WEB-INF/resources/core/party/personeditorform.xhtml" >
+                        <ui:param name="editor" value="#{viewPage.personEditorForm}" />
+                    </ui:decorate>
+                </c:otherwise>
+            </c:choose>
+
+        </div>
+    </ui:define>
+
+</ui:composition>
+XHTML
+else
 {
 ROLE_TITLE=$(echo "${ROLE_NAME}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
 echo "<ui:composition xmlns=\"http://www.w3.org/1999/xhtml\""
@@ -932,15 +1239,75 @@ fi
 
 echo "</ui:composition>"
 } > "$WEB_DIR/view/admin/${ROLE_FILE_BASE}editor.xhtml"
+fi
+
 
 # 5.6 Generate Admin Detail Page XHTML
+if [ "$PARTY_TYPE" = "Both" ]; then
+cat <<XHTML > "$WEB_DIR/view/admin/${ROLE_FILE_BASE}detail.xhtml"
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:f="jakarta.faces.core"
+                template="/WEB-INF/templates/child-page.xhtml"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:h="jakarta.faces.html"
+                xmlns:c="jakarta.tags.core">
+
+    <f:metadata>
+
+        <ui:param name="primaryTitle" value="#{string['${ROLE_LOWER}.detail.page.title']}" />
+
+        <ui:param name="viewPage" value="#{${ROLE_LOWER}DetailPage}" />
+        <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml"/>
+
+        <ui:param name="notool" value="true" />
+        <ui:param name="nofilter" value="true" />
+
+        <f:viewParam name="entity" value="#{viewPage.entity}" converter="${ROLE_CAP}Converter" transient="true" />
+
+        <ui:include src="/WEB-INF/resources/core/party/meta/partydetail.xhtml" >
+            <ui:param name="viewPage" value="#{viewPage.entity.party.class.simpleName eq 'Person' ? viewPage.personDetailPage : viewPage.organizationDetailPage}" />
+        </ui:include>
+
+        <ui:include src="/WEB-INF/resources/core/party/meta/persondetail.xhtml" >
+            <ui:param name="viewPage" value="#{viewPage.personDetailPage}" />
+        </ui:include>
+
+        <f:viewAction action="#{viewPage.load}" />
+    </f:metadata>
+
+    <ui:define name="crud-tools" />
+    <ui:define name="top-tools" />
+    <ui:define name="exporter" />
+    <ui:define name="importer" />
+    <ui:define name="user-tools" />
+
+    <ui:define name="content">
+        <c:choose>
+            <c:when test="#{viewPage.entity.party.class.simpleName.equals('Organization')}">
+                <ui:decorate template="/WEB-INF/resources/core/party/organizationdetail.xhtml">
+                    <ui:param name="editor" value="#{viewPage.organizationDetailPage}" />
+                </ui:decorate>
+            </c:when>
+            <c:otherwise>
+                <ui:decorate template="/WEB-INF/resources/core/party/persondetail.xhtml">
+                    <ui:param name="editor" value="#{viewPage.personDetailPage}" />
+                </ui:decorate>
+            </c:otherwise>
+        </c:choose>
+    </ui:define>
+
+    <ui:define name="pager" />
+</ui:composition>
+XHTML
+else
 {
 echo "<ui:composition xmlns=\"http://www.w3.org/1999/xhtml\""
 echo "                xmlns:ui=\"jakarta.faces.facelets\""
 echo "                xmlns:f=\"jakarta.faces.core\""
 echo "                template=\"/WEB-INF/templates/child-page.xhtml\" "
 echo "                xmlns:p=\"http://primefaces.org/ui\""
-echo "                xmlns:h=\"jakarta.faces.html\">"
+echo "                xmlns:h=\"jakarta.faces.html\""
 echo ""
 echo "    <f:metadata>"
 echo "        <ui:param name=\"primaryTitle\" value=\"Data ${ROLE_CAP}\" />"
@@ -1000,12 +1367,78 @@ echo ""
 echo "    <ui:define name=\"pager\" />"
 echo "</ui:composition>"
 } > "$WEB_DIR/view/admin/${ROLE_FILE_BASE}detail.xhtml"
+fi
+
 
 # 5.7 Generate Detail Page Controller
-if [ -n "$FORM_CLASS" ]; then
+if [ "$PARTY_TYPE" = "Both" ]; then
+cat <<JAVA > "$JAVA_DIR/view/admin/${ROLE_CAP}DetailPage.java"
+package ${BASE_PACKAGE}.view.admin;
+
+import id.my.mdn.kupu.core.base.view.ChildPage;
+import id.my.mdn.kupu.core.base.view.annotation.Bookmarked;
+import id.my.mdn.kupu.core.party.entity.Organization;
+import id.my.mdn.kupu.core.party.entity.Person;
+import id.my.mdn.kupu.core.party.view.OrganizationDetailPage;
+import id.my.mdn.kupu.core.party.view.PersonDetailPage;
+import jakarta.annotation.PostConstruct;
+import jakarta.faces.view.ViewScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import java.io.Serializable;
+import ${BASE_PACKAGE}.dao.${ROLE_CAP}Facade;
+import ${BASE_PACKAGE}.entity.${ROLE_CAP};
+
+@Named(value = "${ROLE_LOWER}DetailPage")
+@ViewScoped
+public class ${ROLE_CAP}DetailPage extends ChildPage implements Serializable {
+
+    @Bookmarked
+    private ${ROLE_CAP} entity;
+
+    @Inject
+    private ${ROLE_CAP}Facade dao;
+
+    @Inject
+    @Bookmarked
+    private OrganizationDetailPage organizationDetailPage;
+
+    @Inject
+    @Bookmarked
+    private PersonDetailPage personDetailPage;
+
+    @PostConstruct
+    @Override
+    protected void init() {
+        super.init();
+        organizationDetailPage.init();
+        personDetailPage.init();
+    }
+
+    @Override
+    public void load() {
+        if (entity.getParty().getClass().equals(Organization.class)) {
+            organizationDetailPage.setParty((Organization) entity.getParty());
+            organizationDetailPage.setContextSupplier(() -> this);
+            organizationDetailPage.setUpdateListener(party -> dao.edit(entity));
+            organizationDetailPage.load();
+        } else if (entity.getParty().getClass().equals(Person.class)) {
+            personDetailPage.setParty((Person) entity.getParty());
+            personDetailPage.setContextSupplier(() -> this);
+            personDetailPage.setUpdateListener(party -> dao.edit(entity));
+            personDetailPage.load();
+        }
+    }
+
+    public ${ROLE_CAP} getEntity() { return entity; }
+    public void setEntity(${ROLE_CAP} entity) { this.entity = entity; }
+    public OrganizationDetailPage getOrganizationDetailPage() { return organizationDetailPage; }
+    public PersonDetailPage getPersonDetailPage() { return personDetailPage; }
+}
+JAVA
+elif [ -n "$FORM_CLASS" ]; then
     PARTY_DETAIL_PAGE="${PARTY_IF}DetailPage"
     PARTY_DETAIL_VAR="partyDetailPage"
-    
 cat <<JAVA > "$JAVA_DIR/view/admin/${ROLE_CAP}DetailPage.java"
 package ${BASE_PACKAGE}.view.admin;
 
@@ -1070,17 +1503,12 @@ fi
 cat <<XHTML > "$COMP_DIR/list/${ROLE_FILE_BASE}list.xhtml"
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                 xmlns:ui="jakarta.faces.facelets"
-                xmlns:h="jakarta.faces.html"
-                xmlns:f="jakarta.faces.core"
-                xmlns:p="primefaces">
+                xmlns:p="primefaces"
+                xmlns:h="jakarta.faces.html">
 
     <ui:decorate template="/WEB-INF/resources/core/base/table.xhtml">
         <ui:define name="columns">
-            <p:column headerText="ID">
-                <h:outputText value="#{data.id}" />
-            </p:column>
-            
-            <p:column headerText="Name">
+            <p:column headerText="#{string['${ROLE_LOWER}.name.label']}">
                 <h:outputText value="#{data.party.name}" />
             </p:column>
 $(for field in "${FIELDS_ARRAY[@]}"; do
@@ -1110,7 +1538,7 @@ cat <<XHTML > "$COMP_DIR/filter/${ROLE_FILE_BASE}-filterui.xhtml"
                 xmlns:p="primefaces">
 
     <div class="filter-field">
-        <p:outputLabel for="name" value="Name" />
+        <p:outputLabel for="name" value="#{string['${ROLE_LOWER}.name.label']}" />
         <p:inputText id="name" value="#{filter.content.name}" />
     </div>
 
@@ -1289,6 +1717,39 @@ if not exists:
 " "$SEC_FILE" "$ACL_NAME" "$ACL_DESC"
     fi
 done
+
+# 12. Generate / update i18n properties files
+ROLE_LABEL=$(echo "${ROLE_NAME}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
+
+EN_PROPS_FILE="$RES_DIR/string_en.properties"
+ID_PROPS_FILE="$RES_DIR/string_id.properties"
+
+# Create files with module title if they don't exist yet
+if [ ! -f "$EN_PROPS_FILE" ]; then
+    MODULE_LABEL=$(echo "${MODULE_NAME}" | sed 's/./\U&/')
+    echo "${MODULE_NAME}.module.title=${MODULE_LABEL}" > "$EN_PROPS_FILE"
+    echo "Created $EN_PROPS_FILE"
+fi
+if [ ! -f "$ID_PROPS_FILE" ]; then
+    MODULE_LABEL=$(echo "${MODULE_NAME}" | sed 's/./\U&/')
+    echo "${MODULE_NAME}.module.title=${MODULE_LABEL}" > "$ID_PROPS_FILE"
+    echo "Created $ID_PROPS_FILE"
+fi
+
+# Append role-specific keys if not already present
+if ! grep -q "^${ROLE_LOWER}\.name\.label=" "$EN_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.name.label=Name" >> "$EN_PROPS_FILE"
+fi
+if ! grep -q "^${ROLE_LOWER}\.detail\.page\.title=" "$EN_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.detail.page.title=${ROLE_LABEL} Detail" >> "$EN_PROPS_FILE"
+fi
+if ! grep -q "^${ROLE_LOWER}\.name\.label=" "$ID_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.name.label=Nama" >> "$ID_PROPS_FILE"
+fi
+if ! grep -q "^${ROLE_LOWER}\.detail\.page\.title=" "$ID_PROPS_FILE"; then
+    echo "${ROLE_LOWER}.detail.page.title=Detail ${ROLE_LABEL}" >> "$ID_PROPS_FILE"
+fi
+echo "Updated i18n properties for ${ROLE_CAP}"
 
 chmod +x "$0"
 echo "Successfully generated and registered application role components for ${ROLE_CAP} in $BASE_PACKAGE"

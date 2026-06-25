@@ -6,7 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Default;
 import jakarta.faces.annotation.FacesConfig;
 import jakarta.inject.Named;
-import java.util.Locale;
 
 /**
  *
@@ -22,25 +21,6 @@ public class Application extends AbstractApplication {
     @Override
     protected void init() {
         super.init();
-    }
-    
-    public Locale getLocale() {
-        return new Locale("in_id");
-    }
-    
-    public String getLocalization() {
-        return getLocale().toString();
-//                .replace("in_id", "in");
-    }
-    
-    public String getModuleIcon(String moduleName) {
-        try {
-            jakarta.faces.context.FacesContext ctx = jakarta.faces.context.FacesContext.getCurrentInstance();
-            java.net.URL resource = ctx.getExternalContext().getResource("/WEB-INF/resources/images/" + moduleName + ".svg");
-            return resource != null ? moduleName + ".svg" : "nothumb.svg";
-        } catch (java.net.MalformedURLException ex) {
-            return "nothumb.svg";
-        }
     }
     
 }

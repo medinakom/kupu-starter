@@ -25,6 +25,26 @@ APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
 
 cd "$PROJECT_ROOT"
 
+# Help flag check
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo "Kupu Application Module Deletion Script"
+    echo "Usage: $(basename "$0") <module_name> [options]"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Display this help message"
+    echo "  --dry-run     Show files that would be deleted without deleting them"
+    echo "  --force       Skip the confirmation prompt"
+    echo ""
+    echo "Arguments:"
+    echo "  module_name   Name of the module to delete (lowercase)"
+    echo ""
+    echo "Examples:"
+    echo "  $(basename "$0") inventory           # Prompt and delete the 'inventory' module"
+    echo "  $(basename "$0") inventory --dry-run # Show what would be deleted for 'inventory'"
+    echo "  $(basename "$0") inventory --force   # Delete 'inventory' module without prompting"
+    exit 0
+fi
+
 # Parse arguments
 MODULE_NAME=$1
 DRY_RUN=false
@@ -39,19 +59,18 @@ if [ "$2" == "--force" ] || [ "$3" == "--force" ]; then
 fi
 
 if [ -z "$MODULE_NAME" ]; then
-    echo "Usage: ./delete-module.sh <module_name> [--dry-run] [--force]"
-    echo "Example: ./delete-module.sh inventory --dry-run"
+    echo "Usage: $(basename "$0") <module_name> [--dry-run] [--force]"
+    echo "Run '$(basename "$0") --help' for details and examples."
     exit 1
 fi
 
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
-MODULE_PREFIX=$(echo "$APP_PACKAGE" | awk -F. '{print $NF}')
 
 # Define paths
 JAVA_DIR="src/main/java/$PKG_PATH/$MODULE_NAME"
 RES_DIR="src/main/resources/$PKG_PATH/$MODULE_NAME"
-WEB_DIR="src/main/webapp/$MODULE_PREFIX/$MODULE_NAME"
-COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_PREFIX/$MODULE_NAME"
+WEB_DIR="src/main/webapp/$MODULE_NAME"
+COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 
 # Check if module exists
 if [ ! -d "$JAVA_DIR" ]; then

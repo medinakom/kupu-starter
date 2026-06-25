@@ -2,17 +2,21 @@
 <persistence version="3.0" xmlns="https://jakarta.ee/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd">
   <persistence-unit name="KupuPersistenceUnit" transaction-type="JTA">
     <jta-data-source>java:global/KupuDataSource</jta-data-source>
-    <jar-file>../../lib/kupu-core-1.0.jar</jar-file>
+    <class>id.my.mdn.kupu.core.ai.model.AiConversation</class>
+    <class>id.my.mdn.kupu.core.ai.model.AiMessage</class>
+    <class>id.my.mdn.kupu.core.ai.model.AiPromptTemplate</class>
+    <class>id.my.mdn.kupu.core.audit.model.AuditLog</class>
+    <class>id.my.mdn.kupu.core.audit.model.AuditLogDetail</class>
+    <class>id.my.mdn.kupu.core.base.model.AbstractTraceableEntity</class>
+    <class>id.my.mdn.kupu.core.base.model.DashboardConfig</class>
     <class>id.my.mdn.kupu.core.common.model.IntegerSerialSeed</class>
     <class>id.my.mdn.kupu.core.common.model.MeasurementUnit</class>
     <class>id.my.mdn.kupu.core.common.model.SerialSeed</class>
     <class>id.my.mdn.kupu.core.common.model.TemperatureUnit</class>
     <class>id.my.mdn.kupu.core.config.model.Config</class>
-    <class>id.my.mdn.kupu.core.hr.entity.Employee</class>
-    <class>id.my.mdn.kupu.core.hr.entity.Employment</class>
-    <class>id.my.mdn.kupu.core.hr.entity.Position</class>
-    <class>id.my.mdn.kupu.core.local.model.LocaleConverter</class>
-    <class>id.my.mdn.kupu.core.local.model.Translation</class>
+    <class>id.my.mdn.kupu.core.config.model.SequenceDefinition</class>
+    <class>id.my.mdn.kupu.core.locale.model.LocaleConverter</class>
+    <class>id.my.mdn.kupu.core.locale.model.Translation</class>
     <class>id.my.mdn.kupu.core.party.entity.Age</class>
     <class>id.my.mdn.kupu.core.party.entity.BusinessEntity</class>
     <class>id.my.mdn.kupu.core.party.entity.ContactMechanism</class>
@@ -26,7 +30,6 @@
     <class>id.my.mdn.kupu.core.party.entity.Organization</class>
     <class>id.my.mdn.kupu.core.party.entity.OrganizationRole</class>
     <class>id.my.mdn.kupu.core.party.entity.OrganizationType</class>
-    <class>id.my.mdn.kupu.core.party.entity.ParentOrganization</class>
     <class>id.my.mdn.kupu.core.party.entity.Party</class>
     <class>id.my.mdn.kupu.core.party.entity.PartyClassification</class>
     <class>id.my.mdn.kupu.core.party.entity.PartyClassificationId</class>
@@ -52,12 +55,18 @@
     <class>id.my.mdn.kupu.core.party.entity.Region</class>
     <class>id.my.mdn.kupu.core.party.entity.RoleType</class>
     <class>id.my.mdn.kupu.core.party.entity.SubDistrict</class>
-    <class>id.my.mdn.kupu.core.party.entity.SubsidiaryOrganization</class>
     <class>id.my.mdn.kupu.core.party.entity.TelecommunicationNumber</class>
     <class>id.my.mdn.kupu.core.party.entity.TelecommunicationNumberPurposeType</class>
     <class>id.my.mdn.kupu.core.party.entity.Urban</class>
     <class>id.my.mdn.kupu.core.reporting.model.ReportMap</class>
     <class>id.my.mdn.kupu.core.reporting.model.ReportTemplate</class>
+    <class>id.my.mdn.kupu.core.rule.model.Rule</class>
+    <class>id.my.mdn.kupu.core.rule.model.RuleAction</class>
+    <class>id.my.mdn.kupu.core.rule.model.RuleSet</class>
+    <class>id.my.mdn.kupu.core.scheduler.model.SchBatch</class>
+    <class>id.my.mdn.kupu.core.scheduler.model.SchJob</class>
+    <class>id.my.mdn.kupu.core.scheduler.model.SchJobExecution</class>
+    <class>id.my.mdn.kupu.core.scripting.model.ScrScript</class>
     <class>id.my.mdn.kupu.core.security.model.AccessControl</class>
     <class>id.my.mdn.kupu.core.security.model.ApplicationSecurityGroup</class>
     <class>id.my.mdn.kupu.core.security.model.ApplicationSecurityMap</class>
@@ -66,6 +75,14 @@
     <class>id.my.mdn.kupu.core.security.model.GroupAccessControl</class>
     <class>id.my.mdn.kupu.core.security.model.GroupAccessControlId</class>
     <class>id.my.mdn.kupu.core.security.model.SecurityToken</class>
+    <class>id.my.mdn.kupu.core.storage.model.StorageBlob</class>
+    <class>id.my.mdn.kupu.core.storage.model.StorageFolder</class>
+    <class>id.my.mdn.kupu.core.storage.model.StorageNode</class>
+    <class>id.my.mdn.kupu.core.workflow.model.WfDefinition</class>
+    <class>id.my.mdn.kupu.core.workflow.model.WfInstance</class>
+    <class>id.my.mdn.kupu.core.workflow.model.WfState</class>
+    <class>id.my.mdn.kupu.core.workflow.model.WfTransition</class>
+    <class>id.my.mdn.kupu.core.workflow.model.WfTransitionLog</class>
 
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
