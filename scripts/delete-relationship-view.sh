@@ -67,7 +67,8 @@ delete_lazy_components() {
     # Actually, step 1 deletes the relationship files first. So any remaining usage is a real dependency.
     
     if [ -f "$LAZY_CHOOSER_FILE" ]; then
-        if grep -r -q "${ROLE_CAP}LazyChooser" "$JAVA_DIR/view"; then
+        # Exclude the file itself from the grep to avoid false "still in use" detection
+        if grep -r -q "${ROLE_CAP}LazyChooser" "$JAVA_DIR/view"                 --exclude="${ROLE_CAP}LazyChooser.java"                 --exclude="${ROLE_CAP}LazyList.java"; then
             echo "Skipping removal of ${ROLE_CAP}LazyChooser.java (still in use)."
         else
             rm -f "$LAZY_CHOOSER_FILE"
@@ -76,12 +77,9 @@ delete_lazy_components() {
     fi
 
     if [ -f "$LAZY_LIST_FILE" ]; then
-        # If Chooser is kept, List must be kept. If Chooser is deleted, List might still be used elsewhere? 
-        # Usually List is used by Chooser. Let's check for List usage too.
         if [ -f "$LAZY_CHOOSER_FILE" ]; then
-             # If chooser exists (was skipped), keep list.
              echo "Skipping removal of ${ROLE_CAP}LazyList.java (Chooser still exists)."
-        elif grep -r -q "${ROLE_CAP}LazyList" "$JAVA_DIR/view"; then
+        elif grep -r -q "${ROLE_CAP}LazyList" "$JAVA_DIR/view"                 --exclude="${ROLE_CAP}LazyList.java"; then
              echo "Skipping removal of ${ROLE_CAP}LazyList.java (still in use)."
         else
             rm -f "$LAZY_LIST_FILE"
