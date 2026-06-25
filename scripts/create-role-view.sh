@@ -1751,5 +1751,5 @@ if ! grep -q "^${ROLE_LOWER}\.detail\.page\.title=" "$ID_PROPS_FILE"; then
 fi
 echo "Updated i18n properties for ${ROLE_CAP}"
 
-chmod +x "$0"
+chmod +x "$(readlink -f "${BASH_SOURCE[0]}")"
 echo "Successfully generated and registered application role components for ${ROLE_CAP} in $BASE_PACKAGE"

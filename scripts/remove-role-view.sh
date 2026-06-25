@@ -75,5 +75,5 @@ find "$JAVA_DIR" -type d -empty -delete
 find "$WEB_DIR" -type d -empty -delete
 find "$COMP_DIR" -type d -empty -delete
 
-chmod +x "$0"
+chmod +x "$(readlink -f "${BASH_SOURCE[0]}")"
 echo "Role '$ROLE_NAME' components removed completely."

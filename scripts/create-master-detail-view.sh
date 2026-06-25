@@ -270,6 +270,6 @@ if [ -f "$MENU_FILE" ]; then
     fi
 fi
 
-chmod +x "$0"
+chmod +x "$(readlink -f "${BASH_SOURCE[0]}")"
 echo "Successfully generated master-detail view components for $PAGE_NAME in $BASE_PACKAGE"
 
