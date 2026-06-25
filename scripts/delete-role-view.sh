@@ -77,12 +77,8 @@ for f in "${FILES[@]}"; do
 done
 
 # 2. Cleanup Navigator (using Perl for multi-line regex)
-NAVIGATOR_FILE="$JAVA_DIR/view/${MODULE_CAP}Navigator.java"
-# Try to find Navigator if standard naming fails
-if [ ! -f "$NAVIGATOR_FILE" ]; then
-    MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/./\U&/')
-    NAVIGATOR_FILE="$JAVA_DIR/view/${MODULE_CAP}Navigator.java"
-fi
+MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/./\U&/')
+NAVIGATOR_FILE="$JAVA_DIR/view/${MODULE_CAP}Navigator.java" 
 
 if [ -f "$NAVIGATOR_FILE" ]; then
     echo "Cleaning up Navigator: $NAVIGATOR_FILE"
@@ -141,29 +137,14 @@ fi
 rmdir "$COMP_DIR/editor" 2>/dev/null
 rmdir "$COMP_DIR/detail" 2>/dev/null
 
-# 6. Cleanup Module Registration
-MODULE_CAP=$(echo "$MODULE_NAME" | sed 's/./\U&/')
-MODULE_FILE="$JAVA_DIR/${MODULE_CAP}Module.java"
-if [ -f "$MODULE_FILE" ]; then
-    echo "Cleaning up Module Registration: $MODULE_FILE"
-    # Remove the createTypeIfNotExist line
-    sed -i "/partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class,/d" "$MODULE_FILE"
-    
-    # Remove the entity import
-    sed -i "/import ${BASE_PACKAGE}.entity.${ROLE_CAP};/d" "$MODULE_FILE"
-fi
-
-# 7. Cleanup i18n properties
+# 6. Cleanup i18n properties
 EN_PROPS_FILE="$RES_DIR/string_en.properties"
 ID_PROPS_FILE="$RES_DIR/string_id.properties"
 
 for file in "$EN_PROPS_FILE" "$ID_PROPS_FILE"; do
     if [ -f "$file" ]; then
         echo "Cleaning up i18n properties in $file"
-        sed -i "/^${ROLE_LOWER}\\.name\\.label=/d" "$file"
-        sed -i "/^${ROLE_LOWER}\\.page\\.title=/d" "$file"
-        sed -i "/^${ROLE_LOWER}\\.editor\\.page\\.title=/d" "$file"
-        sed -i "/^${ROLE_LOWER}\\.detail\\.page\\.title=/d" "$file"
+        sed -i "/^${ROLE_LOWER}\./d" "$file"
     fi
 done
 
