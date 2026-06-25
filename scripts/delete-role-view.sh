@@ -27,7 +27,7 @@ if [ -z "$MODULE_NAME" ] || [ -z "$ROLE_NAME" ]; then
 fi
 
 ROLE_CAP=$(echo "$ROLE_NAME" | sed 's/./\U&/')
-ROLE_LOWER=$(echo "$ROLE_NAME" | sed 's/./\L&/')
+ROLE_LOWER=$(echo "$ROLE_NAME" | tr '[:upper:]' '[:lower:]')
 PKG_PATH=$(echo "$APP_PACKAGE" | tr . /)
 MODULE_BEAN=$(echo "$MODULE_NAME" | sed 's/./\L&/')
 
