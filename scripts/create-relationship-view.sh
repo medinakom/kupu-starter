@@ -481,14 +481,12 @@ import ${BASE_PACKAGE}.view.misc.${TO_ROLE_CAP}LazyChooser;
 import id.my.mdn.kupu.core.base.util.Result;
 import id.my.mdn.kupu.core.base.view.FormPage;
 import id.my.mdn.kupu.core.base.view.annotation.Bookmarked;
-import id.my.mdn.kupu.core.party.entity.PartyRelationshipId;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ConversationScoped;
 import jakarta.faces.event.ActionEvent;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -536,7 +534,7 @@ public class ${REL_CAP}EditorPage extends FormPage<${REL_CAP}> implements Serial
         return context;
     }
 
-    public void onSelectFromRole(${FROM_ROLE_CAP} selection, Map<String, Object> context) {
+    public void onSelectFromRole(${FROM_ROLE_CAP} selection) {
         getEntity().setFromRole(selection);
     }
 
@@ -545,7 +543,7 @@ public class ${REL_CAP}EditorPage extends FormPage<${REL_CAP}> implements Serial
         return context;
     }
 
-    public void onSelectToRole(${TO_ROLE_CAP} selection, Map<String, Object> context) {
+    public void onSelectToRole(${TO_ROLE_CAP} selection) {
         getEntity().setToRole(selection);
     }
 
@@ -654,7 +652,7 @@ cat <<XHTML > "$WEB_DIR/view/${REL_LOWER}.xhtml"
                 template="/WEB-INF/templates/page.xhtml">
 
     <f:metadata>
-        <ui:param name="title" value="${REL_CAP}" />
+        <ui:param name="title" value="#{string['${REL_LOWER}.page.title']}" />
 
         <ui:param name="viewPage" value="#{${REL_LOWER}Page}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
@@ -667,6 +665,9 @@ cat <<XHTML > "$WEB_DIR/view/${REL_LOWER}.xhtml"
         <ui:param name="filterType" value="overlay" />
         <ui:param name="filterUi" value="/WEB-INF/resources/${MODULE_NAME}/filter/${REL_LOWER}-filterui.xhtml" />
         <ui:include src="/WEB-INF/resources/${MODULE_NAME}/filter/meta/${REL_LOWER}-filterui.xhtml" />
+
+        <ui:param name="sorter" value="#{dataView.sorter}" />
+        <ui:include src="/WEB-INF/resources/core/base/meta/sorter.xhtml" />
 
         <ui:param name="pager" value="#{dataView.pager}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/pager.xhtml" />
@@ -767,8 +768,7 @@ cat <<XHTML > "$WEB_DIR/view/admin/${REL_LOWER}editor.xhtml"
                 template="/WEB-INF/templates/editor-page.xhtml">
 
     <f:metadata>
-        <ui:param name="primaryTitle" value="Editor ${REL_CAP}" />
-        <ui:param name="secondaryTitle" value="Baru" />
+        <ui:param name="primaryTitle" value="#{string['${REL_LOWER}.editor.page.title']}" />
 
         <ui:param name="viewPage" value="#{${REL_LOWER}EditorPage}" />
         <ui:include src="/WEB-INF/resources/core/base/meta/page.xhtml" />
@@ -788,27 +788,27 @@ cat <<XHTML > "$WEB_DIR/view/admin/${REL_LOWER}editor.xhtml"
                     <ui:define name="fields">
 
                         <div class="form-field">
-                            <p:outputLabel for="fromRole" value="${FROM_ROLE_CAP}" />
+                            <p:outputLabel for="fromRole" value="#{string['${REL_LOWER}.fromRole.label']}" />
                             <k:lazySelector id="fromRole"
                                             value="#{viewPage.entity.fromRole ne null ? viewPage.entity.fromRole.party.name : ''}"
-                                            selector="${FROM_ROLE_CAP}Selector" update="#{component.clientId}" required="true"
+                                            selector="${FROM_ROLE_CAP}Selector" required="true"
                                             rendered="#{viewPage.createNew}" />
                             <p:inputText value="#{viewPage.entity.fromRole ne null ? viewPage.entity.fromRole.party.name : ''}"
                                          readonly="true" styleClass="w-full" rendered="#{not viewPage.createNew}" />
                         </div>
 
                         <div class="form-field">
-                            <p:outputLabel for="toRole" value="${TO_ROLE_CAP}" />
+                            <p:outputLabel for="toRole" value="#{string['${REL_LOWER}.toRole.label']}" />
                             <k:lazySelector id="toRole"
                                             value="#{viewPage.entity.toRole ne null ? viewPage.entity.toRole.party.name : ''}"
-                                            selector="${TO_ROLE_CAP}Selector" update="#{component.clientId}" required="true"
+                                            selector="${TO_ROLE_CAP}Selector" required="true"
                                             rendered="#{viewPage.createNew}" />
                             <p:inputText value="#{viewPage.entity.toRole ne null ? viewPage.entity.toRole.party.name : ''}"
                                          readonly="true" styleClass="w-full" rendered="#{not viewPage.createNew}" />
                         </div>
 
                         <div class="form-field">
-                            <p:outputLabel for="fromDate" value="From Date" />
+                            <p:outputLabel for="fromDate" value="#{string['${REL_LOWER}.fromDate.label']}" />
                             <p:datePicker id="fromDate" value="#{viewPage.entity.fromDate}"
                                           flex="true" inputStyleClass="w-full"
                                           readonly="#{not viewPage.createNew}"
@@ -819,7 +819,7 @@ cat <<XHTML > "$WEB_DIR/view/admin/${REL_LOWER}editor.xhtml"
                         </div>
 
                         <div class="form-field">
-                            <p:outputLabel for="thruDate" value="Thru Date" />
+                            <p:outputLabel for="thruDate" value="#{string['${REL_LOWER}.thruDate.label']}" />
                             <div class="flex">
                                 <p:datePicker id="thruDate" value="#{viewPage.entity.thruDate}"
                                               flex="true" inputStyleClass="w-full"
@@ -902,8 +902,8 @@ XHTML
 # 6. Register in Menu
 MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
-    if ! grep -q "value=\"${REL_CAP}\"" "$MENU_FILE"; then
-        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${REL_CAP}\" icon=\"pi pi-link\" actionListener=\"#{${MODULE_NAME}Navigator.open('${REL_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
+    if ! grep -q "Navigator\.open('${REL_CAP}'," "$MENU_FILE"; then
+        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"#{string['${REL_LOWER}.page.title']}\" icon=\"pi pi-link\" actionListener=\"#{${MODULE_NAME}Navigator.open('${REL_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
         echo "Registered ${REL_CAP} in $MENU_FILE"
     fi
 fi
@@ -954,4 +954,23 @@ fi
 chmod +x "$WEB_DIR/view/${REL_LOWER}.xhtml"
 chmod +x "$WEB_DIR/view/admin/${REL_LOWER}editor.xhtml"
 
-echo "Relationship ${REL_CAP} created successfully."
+# 10. Update i18n properties
+REL_LABEL=$(echo "${RELATIONSHIP_NAME}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
+FROM_ROLE_LABEL=$(echo "${FROM_ROLE}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
+TO_ROLE_LABEL=$(echo "${TO_ROLE}" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //')
+
+for PROPS_FILE in "$RES_DIR/string_en.properties" "$RES_DIR/string_id.properties"; do
+    if [ -f "$PROPS_FILE" ]; then
+        if ! grep -q "^${REL_LOWER}.page.title=" "$PROPS_FILE"; then
+            echo "${REL_LOWER}.page.title=${REL_LABEL}" >> "$PROPS_FILE"
+            echo "${REL_LOWER}.editor.page.title=${REL_LABEL} Editor" >> "$PROPS_FILE"
+            echo "${REL_LOWER}.fromRole.label=${FROM_ROLE_LABEL}" >> "$PROPS_FILE"
+            echo "${REL_LOWER}.toRole.label=${TO_ROLE_LABEL}" >> "$PROPS_FILE"
+            echo "${REL_LOWER}.fromDate.label=From Date" >> "$PROPS_FILE"
+            echo "${REL_LOWER}.thruDate.label=Thru Date" >> "$PROPS_FILE"
+            echo "Updated i18n keys in $PROPS_FILE"
+        fi
+    fi
+done
+
+echo "Relationship ${REL_CAP} created successfully." 
