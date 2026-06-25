@@ -153,4 +153,18 @@ if [ -f "$MODULE_FILE" ]; then
     sed -i "/import ${BASE_PACKAGE}.entity.${ROLE_CAP};/d" "$MODULE_FILE"
 fi
 
-echo "Role '$ROLE_NAME' deletion complete."
+# 7. Cleanup i18n properties
+EN_PROPS_FILE="$RES_DIR/string_en.properties"
+ID_PROPS_FILE="$RES_DIR/string_id.properties"
+
+for file in "$EN_PROPS_FILE" "$ID_PROPS_FILE"; do
+    if [ -f "$file" ]; then
+        echo "Cleaning up i18n properties in $file"
+        sed -i "/^${ROLE_LOWER}\\.name\\.label=/d" "$file"
+        sed -i "/^${ROLE_LOWER}\\.page\\.title=/d" "$file"
+        sed -i "/^${ROLE_LOWER}\\.editor\\.page\\.title=/d" "$file"
+        sed -i "/^${ROLE_LOWER}\\.detail\\.page\\.title=/d" "$file"
+    fi
+done
+
+echo "Role '$ROLE_NAME' deletion complete." 
