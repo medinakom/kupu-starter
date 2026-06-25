@@ -1,10 +1,13 @@
 #!/bin/bash
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+
 # Configuration
-DEFAULT_JAR="src/main/webapp/WEB-INF/lib/kupu-config.jar"
+DEFAULT_JAR="$PROJECT_ROOT/src/main/webapp/WEB-INF/lib/kupu-config.jar"
 CONFIG_FILE="META-INF/web-fragment.xml"
-DRIVER_POOL_DIR="jdbc"
-WEB_INF_LIB="src/main/webapp/WEB-INF/lib"
+DRIVER_POOL_DIR="$PROJECT_ROOT/jdbc"
+WEB_INF_LIB="$PROJECT_ROOT/src/main/webapp/WEB-INF/lib"
 
 # Default Values for Creation
 DB_HOST="localhost"
@@ -200,7 +203,10 @@ function run_create {
     # Automated Driver Injection
     if [ "$CREATE_DS" = "true" ] && [ -n "$DBMS_TYPE" ] && [ "$DBMS_TYPE" != "Custom" ]; then
         local pattern=${DBMS_JAR_PATTERNS[$DBMS_TYPE]}
-        local source_jar=$(find "$DRIVER_POOL_DIR" -name "$pattern" | head -n 1)
+        local source_jar=""
+        if [ -d "$DRIVER_POOL_DIR" ]; then
+            source_jar=$(find "$DRIVER_POOL_DIR" -name "$pattern" | head -n 1)
+        fi
         
         if [ -n "$source_jar" ]; then
             echo "🚚 Injecting JDBC Driver for $DBMS_TYPE..."
@@ -407,14 +413,16 @@ function run_testdb {
 
     # Find Driver JAR (Check Pool first, then Lib)
     local pattern=${DBMS_JAR_PATTERNS[$dbms_found]}
-    local driver_jar=$(find "$DRIVER_POOL_DIR" -name "$pattern" | head -n 1)
-    
-    if [ -z "$driver_jar" ]; then
+    local driver_jar=""
+    if [ -d "$DRIVER_POOL_DIR" ]; then
+        driver_jar=$(find "$DRIVER_POOL_DIR" -name "$pattern" | head -n 1)
+    fi
+    if [ -z "$driver_jar" ] && [ -d "$WEB_INF_LIB" ]; then
         driver_jar=$(find "$WEB_INF_LIB" -name "$pattern" | head -n 1)
     fi
 
     if [ -z "$driver_jar" ]; then
-        echo "❌ Error: Driver JAR for $dbms_found not found in $lib_dir (Pattern: $pattern)"
+        echo "❌ Error: Driver JAR for $dbms_found not found in $DRIVER_POOL_DIR or $WEB_INF_LIB (Pattern: $pattern)"
         rm -rf "$temp_dir"
         exit 1
     fi
