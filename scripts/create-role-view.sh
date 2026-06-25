@@ -269,7 +269,15 @@ JAVA
 fi
 
 # 2. Generate Facade
-if [ "$PARTY_TYPE" = "Both" ]; then
+MTO_CASES=""
+for field in "${FIELDS_ARRAY[@]}"; do
+    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
+    if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
+    if [ "$MTO_FLAG" = "MTO" ]; then
+        MTO_CASES+="            case \"$NAME\":"$\'\n\'"                return cb.equal(froms[0].get(\"$NAME\"), filterValue);"$\'\n\'
+    fi
+done
+
 cat <<JAVA > "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
 package ${BASE_PACKAGE}.dao;
 
@@ -279,10 +287,11 @@ import id.my.mdn.kupu.core.base.event.ModulePostInitEvent;
 import id.my.mdn.kupu.core.base.util.Result;
 import id.my.mdn.kupu.core.party.dao.PartyRoleFacade;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.ObservesAsync;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
@@ -301,23 +310,24 @@ public class ${ROLE_CAP}Facade extends AbstractFacade<${ROLE_CAP}> {
     @Override protected EntityManager getEntityManager() { return em; }
     public ${ROLE_CAP}Facade() { super(${ROLE_CAP}.class); }
 
-    protected void onPreInitModule(@ObservesAsync @ModulePostInitEvent ${MODULE_CAP}Module module) {
+    protected void onPostInitModule(@Observes @ModulePostInitEvent ${MODULE_CAP}Module module) {
         partyRoleFacade.introduceType(entityClass);
     }
 
     @Override
-    protected Predicate applyFilter(String filterName, Object filterValue, CriteriaQuery cq, From... from) {
+    protected Predicate applyFilter(String filterName, Object filterValue, CriteriaQuery cq, From... froms) {
+$(if [ -n "$MTO_CASES" ]; then echo "        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();"; fi)
         switch (filterName) {
-            default:
-                return partyRoleFacade.applyFilter(filterName, filterValue, cq, from);
+$MTO_CASES            default:
+                return partyRoleFacade.applyFilter(filterName, filterValue, cq, froms);
         }
     }
 
     @Override
-    protected Expression orderExpression(String field, From... from) {
+    protected Expression orderExpression(String field, From... froms) {
         switch (field) {
             default:
-                return partyRoleFacade.orderExpression(field, from);
+                return partyRoleFacade.orderExpression(field, froms);
         }
     }
 
@@ -332,63 +342,6 @@ public class ${ROLE_CAP}Facade extends AbstractFacade<${ROLE_CAP}> {
     }
 }
 JAVA
-else
-cat <<JAVA > "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
-package ${BASE_PACKAGE}.dao;
-
-import ${BASE_PACKAGE}.entity.${ROLE_CAP};
-import id.my.mdn.kupu.core.party.dao.${BASE_FACADE};
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.From;
-import jakarta.persistence.criteria.Predicate;
-
-@ApplicationScoped
-public class ${ROLE_CAP}Facade extends ${BASE_FACADE}<${ROLE_CAP}> {
-
-    @PersistenceContext(unitName = "KupuPersistenceUnit")
-    private EntityManager em;
-
-    public ${ROLE_CAP}Facade() {
-        super(${ROLE_CAP}.class);
-    }
-
-    @Override
-    protected EntityManager getEntityManager() {
-        return em;
-    }
-JAVA
-
-# Generate applyFilter cases for MTO fields
-MTO_CASES=""
-for field in "${FIELDS_ARRAY[@]}"; do
-    IFS=':' read -r TYPE NAME MTO_FLAG <<< "$field"
-    if [ "$IS_HIERARCHICAL" = true ] && [ "$NAME" = "parent" ]; then continue; fi
-    if [ "$MTO_FLAG" = "MTO" ]; then
-        MTO_CASES+="            case \"$NAME\":"$'\n'"                return cb.equal(froms[0].get(\"$NAME\"), filterValue);"$'\n'
-    fi
-done
-
-if [ -n "$MTO_CASES" ]; then
-cat <<JAVA >> "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
-
-    @Override
-    protected Predicate applyFilter(String filterName, Object filterValue, CriteriaQuery cq, From... froms) {
-        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-        switch (filterName) {
-$MTO_CASES            default:
-                return super.applyFilter(filterName, filterValue, cq, froms);
-        }
-    }
-JAVA
-fi
-
-echo "}" >> "$JAVA_DIR/dao/${ROLE_CAP}Facade.java"
-fi
-
 
 # 2.5 Generate Filter Content
 {
@@ -1626,51 +1579,11 @@ fi
 # 10. Register in Menu
 MENU_FILE="$COMP_DIR/module-menu.xhtml"
 if [ -f "$MENU_FILE" ]; then
-    if ! grep -q "value=\"${ROLE_CAP}\"" "$MENU_FILE"; then
+    if ! grep -q "Navigator\.open('${ROLE_CAP}'," "$MENU_FILE"; then
         # Insert before the closing tag, ensuring correct formatting
-        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"${ROLE_CAP}\" icon=\"pi pi-users\" actionListener=\"#{${MODULE_BEAN}Navigator.open('${ROLE_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
+        sed -i "/<\/ui:composition>/i \    <p:menuitem value=\"#{string['${ROLE_LOWER}.page.title']}\" icon=\"pi pi-users\" actionListener=\"#{${MODULE_BEAN}Navigator.open('${ROLE_CAP}', '')}\" immediate=\"true\" />" "$MENU_FILE"
         echo "Registered ${ROLE_CAP} in $MENU_FILE"
     fi
-fi
-
-# 12. Register in Module
-MODULE_FILE="$JAVA_DIR/${MODULE_CAP}Module.java"
-if [ -f "$MODULE_FILE" ]; then
-    # Ensure PartyRoleTypeFacade is injected
-    if ! grep -q "PartyRoleTypeFacade" "$MODULE_FILE"; then
-        sed -i "/package.*;/a import id.my.mdn.kupu.core.party.dao.PartyRoleTypeFacade;" "$MODULE_FILE"
-        sed -i "/package.*;/a import jakarta.inject.Inject;" "$MODULE_FILE"
-        sed -i "/package.*;/a import ${BASE_PACKAGE}.entity.${ROLE_CAP};" "$MODULE_FILE"
-        sed -i "/public class.*{/a \ \n    @Inject\n    private PartyRoleTypeFacade partyRoleTypeFacade;" "$MODULE_FILE"
-    else
-        # If imports or injection already exists, ensure we have the role entity import
-        if ! grep -q "import ${BASE_PACKAGE}.entity.${ROLE_CAP};" "$MODULE_FILE"; then
-             sed -i "/package.*;/a import ${BASE_PACKAGE}.entity.${ROLE_CAP};" "$MODULE_FILE"
-        fi
-    fi
-
-    # Ensure postInit method exists
-    if grep -q "protected void postInit().*{}" "$MODULE_FILE"; then
-        # Replace empty one-liner postInit() {} with a fully formed block
-        sed -i "s/.*protected void postInit().*{}.*/    @Override\n    protected void postInit() {\n        partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class, \"${ROLE_CAP}\");\n    }/" "$MODULE_FILE"
-    elif ! grep -q "protected void postInit()" "$MODULE_FILE"; then
-         # Insert postInit before the last closing brace
-         sed -i "\$ d" "$MODULE_FILE"
-         cat <<JAVA >> "$MODULE_FILE"
-
-    @Override
-    protected void postInit() {
-        partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class, "${ROLE_CAP}");
-    }
-}
-JAVA
-    else
-        # Add createTypeIfNotExist call to existing postInit
-        if ! grep -q "createTypeIfNotExist(${ROLE_CAP}.class" "$MODULE_FILE"; then
-            sed -i "/protected void postInit().*{/a \\        partyRoleTypeFacade.createTypeIfNotExist(${ROLE_CAP}.class, \"${ROLE_CAP}\");" "$MODULE_FILE"
-        fi
-    fi
-    echo "Registered ${ROLE_CAP} in $MODULE_FILE"
 fi
 
 # 11. Update security.json
