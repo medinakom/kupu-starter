@@ -157,5 +157,5 @@ cat <<EOF > "$WEB_DIR/index.xhtml"
 </ui:composition>
 EOF
 
-chmod +x "$(readlink -f "${BASH_SOURCE[0]}")"
+chmod +x "$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 echo "Module '$MODULE_NAME' created successfully in $BASE_PACKAGE."

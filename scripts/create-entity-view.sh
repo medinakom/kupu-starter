@@ -1207,5 +1207,5 @@ for field in "${FIELDS_ARRAY[@]}"; do
     fi
 done
 
-chmod +x "$(readlink -f "${BASH_SOURCE[0]}")"
+chmod +x "$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 echo "Successfully generated application entity components in $BASE_PACKAGE"

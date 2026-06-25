@@ -967,5 +967,5 @@ if not exists:
     fi
 done
 
-chmod +x "$(readlink -f "${BASH_SOURCE[0]}")"
+chmod +x "$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 echo "Successfully generated and registered application role components for ${ROLE_CAP} in $BASE_PACKAGE"
