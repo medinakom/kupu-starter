@@ -17,14 +17,50 @@ APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
 
 cd "$PROJECT_ROOT"
 
-MODULE_NAME=$1
-MASTER_ENTITY=$2
-DETAIL_ENTITY=$3
-MAPPED_BY_FIELD=$4
-CUSTOM_PAGE_NAME=$5
+MODULE_NAME=""
+MASTER_ENTITY=""
+DETAIL_ENTITY=""
+MAPPED_BY_FIELD=""
+CUSTOM_PAGE_NAME=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            echo "Kupu Master-Detail View Generator"
+            echo "Generates a composite view controller and template connecting two entities via OneToMany"
+            echo ""
+            echo "Usage: $(basename "$0") <module_name> <master_entity> <detail_entity> <mapped_by_field> [page_name]"
+            echo ""
+            echo "Options:"
+            echo "  -h, --help           Display this help message"
+            echo ""
+            echo "Arguments:"
+            echo "  module_name          Name of the target sub-module (lowercase, e.g. 'inventory')"
+            echo "  master_entity        Name of the master JPA Entity class (CamelCase, e.g. 'Order')"
+            echo "  detail_entity        Name of the detail JPA Entity class (CamelCase, e.g. 'OrderItem')"
+            echo "  mapped_by_field      Name of the field in the detail entity that maps back to the master (e.g. 'order')"
+            echo "  page_name            Custom name for the generated page (optional, defaults to '<MasterEntity><DetailEntity>')"
+            echo ""
+            echo "Examples:"
+            echo "  $(basename "$0") inventory Order OrderItem order"
+            echo "  $(basename "$0") inventory Order OrderItem order OrderDetail"
+            exit 0
+            ;;
+        *)
+            if [ -z "$MODULE_NAME" ]; then MODULE_NAME=$1
+            elif [ -z "$MASTER_ENTITY" ]; then MASTER_ENTITY=$1
+            elif [ -z "$DETAIL_ENTITY" ]; then DETAIL_ENTITY=$1
+            elif [ -z "$MAPPED_BY_FIELD" ]; then MAPPED_BY_FIELD=$1
+            elif [ -z "$CUSTOM_PAGE_NAME" ]; then CUSTOM_PAGE_NAME=$1
+            fi
+            ;;
+    esac
+    shift
+done
 
 if [ -z "$MODULE_NAME" ] || [ -z "$MASTER_ENTITY" ] || [ -z "$DETAIL_ENTITY" ] || [ -z "$MAPPED_BY_FIELD" ]; then
-    echo "Usage: ./create-master-detail-view.sh <module_name> <master_entity> <detail_entity> <mapped_by_field> [page_name]"
+    echo "Usage: $(basename "$0") <module_name> <master_entity> <detail_entity> <mapped_by_field> [page_name]"
+    echo "Run '$(basename "$0") --help' for details and examples."
     exit 1
 fi
 

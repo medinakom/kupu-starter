@@ -44,7 +44,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  entity_package       Java package for the entity (optional, auto-discovered if file exists)"
             echo ""
             echo "Examples:"
-            echo "  $(basename "$0") inventory Product id.my.mdn.kupu.app.inventory.entity"
+            echo "  $(basename "$0") inventory Product net.kupuhub.tirta.inventory.entity"
             echo "  $(basename "$0") inventory Product --no-acl"
             echo "  $(basename "$0") core Category --hierarchical"
             exit 0

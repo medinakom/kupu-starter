@@ -17,13 +17,44 @@ BASE_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
 
 cd "$PROJECT_ROOT"
 
-MODULE_NAME=$1
+MODULE_NAME=""
+BASE_NAME=""
+CUSTOM_XHTML=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            echo "Kupu Application Page Generator"
+            echo "Generates a ViewScoped Java page controller and a companion XHTML layout"
+            echo ""
+            echo "Usage: $(basename "$0") [sub_module_name] [page_name] [custom_xhtml]"
+            echo "Note: If sub_module_name or page_name are omitted, you will be prompted interactively."
+            echo ""
+            echo "Options:"
+            echo "  -h, --help           Display this help message"
+            echo ""
+            echo "Arguments:"
+            echo "  sub_module_name      Name of the target sub-module (lowercase, e.g. 'inventory')"
+            echo "  page_name            Name of the page to generate (CamelCase, e.g. 'Dashboard')"
+            echo "  custom_xhtml         Optional custom file name for the XHTML view (lowercase)"
+            echo ""
+            echo "Examples:"
+            echo "  $(basename "$0") inventory Dashboard"
+            echo "  $(basename "$0") inventory Dashboard main-dashboard"
+            exit 0
+            ;;
+        *)
+            if [ -z "$MODULE_NAME" ]; then MODULE_NAME=$1
+            elif [ -z "$BASE_NAME" ]; then BASE_NAME=$1
+            elif [ -z "$CUSTOM_XHTML" ]; then CUSTOM_XHTML=$1
+            fi
+            ;;
+    esac
+    shift
+done
+
 if [ -z "$MODULE_NAME" ]; then read -p "Enter sub-module name: " MODULE_NAME; fi
-
-BASE_NAME=$2
 if [ -z "$BASE_NAME" ]; then read -p "Enter base page name (CamelCase): " BASE_NAME; fi
-
-CUSTOM_XHTML=$3
 PKG_PATH=$(echo "$BASE_PACKAGE" | tr . /)
 
 # Paths

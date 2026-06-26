@@ -17,16 +17,48 @@ APP_PACKAGE=$(cat "$CONFIG_FILE" | head -1)
 
 cd "$PROJECT_ROOT"
 
-if [ "$#" -lt 4 ]; then
-    echo "Usage: ./create-relationship-view.sh <module_name> <relationship_name> <from_role> <to_role>"
-    echo "Example: ./create-relationship-view.sh santri SantriEnrollment Santri KelompokPengasuhan"
+MODULE_NAME=""
+RELATIONSHIP_NAME=""
+FROM_ROLE=""
+TO_ROLE=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            echo "Kupu Application Relationship Component Generator"
+            echo "Generates JPA Entity (if missing), Facade, List Bean, Page Controller, and XHTMLs for a relationship"
+            echo ""
+            echo "Usage: $(basename "$0") <module_name> <relationship_name> <from_role> <to_role>"
+            echo ""
+            echo "Options:"
+            echo "  -h, --help           Display this help message"
+            echo ""
+            echo "Arguments:"
+            echo "  module_name          Name of the target sub-module (lowercase, e.g. 'santri')"
+            echo "  relationship_name    Name of the relationship class to create (CamelCase, e.g. 'SantriEnrollment')"
+            echo "  from_role            Name of the source Role class (CamelCase, e.g. 'Santri')"
+            echo "  to_role              Name of the target Role class (CamelCase, e.g. 'KelompokPengasuhan')"
+            echo ""
+            echo "Examples:"
+            echo "  $(basename "$0") santri SantriEnrollment Santri KelompokPengasuhan"
+            exit 0
+            ;;
+        *)
+            if [ -z "$MODULE_NAME" ]; then MODULE_NAME=$1
+            elif [ -z "$RELATIONSHIP_NAME" ]; then RELATIONSHIP_NAME=$1
+            elif [ -z "$FROM_ROLE" ]; then FROM_ROLE=$1
+            elif [ -z "$TO_ROLE" ]; then TO_ROLE=$1
+            fi
+            ;;
+    esac
+    shift
+done
+
+if [ -z "$MODULE_NAME" ] || [ -z "$RELATIONSHIP_NAME" ] || [ -z "$FROM_ROLE" ] || [ -z "$TO_ROLE" ]; then
+    echo "Usage: $(basename "$0") <module_name> <relationship_name> <from_role> <to_role>"
+    echo "Run '$(basename "$0") --help' for details and examples."
     exit 1
 fi
-
-MODULE_NAME=$1
-RELATIONSHIP_NAME=$2
-FROM_ROLE=$3
-TO_ROLE=$4
 
 REL_CAP=$(echo "$RELATIONSHIP_NAME" | sed 's/./\U&/')
 REL_LOWER=$(echo "$RELATIONSHIP_NAME" | tr '[:upper:]' '[:lower:]')
