@@ -123,6 +123,7 @@ import id.my.mdn.kupu.core.base.view.annotation.Creator;
 import id.my.mdn.kupu.core.base.view.annotation.Editor;
 import id.my.mdn.kupu.core.base.view.annotation.Deleter;
 import static id.my.mdn.kupu.core.base.view.widget.Selector.SINGLE;
+import static id.my.mdn.kupu.core.base.view.widget.Selector.MULTIPLE;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
@@ -154,6 +155,7 @@ public class ${PAGE_NAME}Page extends Page implements Serializable {
         masterDataView.getSelector().addListener((s) -> onSelect${MASTER_CAP}((${MASTER_CAP}) s));
         masterDataView.getSelector().addListenerInternal((s) -> onSelect${MASTER_CAP}((${MASTER_CAP}) s));
 
+        detailDataView.setSelectionMode(() -> MULTIPLE);
         detailDataView.getSelector().setSelectionsLabel("ds");
 $(if [ "$DETAIL_LIST_SUFFIX" = "List" ]; then echo "        detailDataView.getPager().setPageSizeLabel(\"dp\");
         detailDataView.getPager().setOffsetLabel(\"do\");"; fi)
@@ -162,10 +164,10 @@ $(if [ "$DETAIL_LIST_SUFFIX" = "List" ]; then echo "        detailDataView.getPa
     }
 
     private void onSelect${MASTER_CAP}(${MASTER_CAP} selection) {
+        detailDataView.reset();
         detailDataView.getFilter()
                 .<${DETAIL_CAP}Filter>getContent()
                 .set${MAPPED_CAP}(selection);
-        detailDataView.doFilter();
     }
 
     public ${MASTER_CAP}${MASTER_LIST_SUFFIX} getMasterDataView() { return masterDataView; }
