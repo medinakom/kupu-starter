@@ -21,7 +21,6 @@ cd "$PROJECT_ROOT"
 
 SUB_MODULE=""
 ENTITY_NAME=""
-ENTITY_PKG=""
 SKIP_ACL=false
 IS_HIERARCHICAL=false
 
@@ -31,7 +30,7 @@ while [[ "$#" -gt 0 ]]; do
         --hierarchical|-H) IS_HIERARCHICAL=true ;;
         -h|--help)
             echo "Kupu Application Entity View Generator"
-            echo "Usage: $(basename "$0") <sub_module_name> <entity_name> [entity_package] [options]"
+            echo "Usage: $(basename "$0") <sub_module_name> <entity_name> [options]"
             echo ""
             echo "Options:"
             echo "  -h, --help           Display this help message"
@@ -41,10 +40,9 @@ while [[ "$#" -gt 0 ]]; do
             echo "Arguments:"
             echo "  sub_module_name      Name of the target sub-module (lowercase)"
             echo "  entity_name          Name of the JPA Entity class (CamelCase)"
-            echo "  entity_package       Java package for the entity (optional, auto-discovered if file exists)"
             echo ""
             echo "Examples:"
-            echo "  $(basename "$0") inventory Product net.kupuhub.tirta.inventory.entity"
+            echo "  $(basename "$0") inventory Product"
             echo "  $(basename "$0") inventory Product --no-acl"
             echo "  $(basename "$0") core Category --hierarchical"
             exit 0
@@ -52,7 +50,6 @@ while [[ "$#" -gt 0 ]]; do
         *) 
             if [ -z "$SUB_MODULE" ]; then SUB_MODULE=$1
             elif [ -z "$ENTITY_NAME" ]; then ENTITY_NAME=$1
-            elif [ -z "$ENTITY_PKG" ]; then ENTITY_PKG=$1
             fi
             ;;
     esac
@@ -60,7 +57,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [ -z "$SUB_MODULE" ] || [ -z "$ENTITY_NAME" ]; then
-    echo "Usage: $(basename "$0") <sub_module_name> <entity_name> [entity_package] [options]"
+    echo "Usage: $(basename "$0") <sub_module_name> <entity_name> [options]"
     echo "Run '$(basename "$0") --help' for details and examples."
     exit 1
 fi
@@ -83,22 +80,17 @@ VIEW_BASE_DIR="src/main/webapp"
 VIEW_NS_PATH="/$MODULE_NAME"
 COMP_DIR="src/main/webapp/WEB-INF/resources/$MODULE_NAME"
 
-ENTITY_PKG_PATH=$(echo "$ENTITY_PKG" | tr . /)
-ENTITY_FILE="src/main/java/${ENTITY_PKG_PATH}/${ENTITY_CAP}.java"
+# Discover Entity or construct default package
+FOUND_ENTITY=$(find src/main/java -name "$MODULE_NAME" -type d -exec find {} -name "${ENTITY_CAP}.java" \; | head -n 1)
 
-# 1.1 Discover Entity if package is missing or file not found
-if [ -z "$ENTITY_PKG" ] || [ ! -f "$ENTITY_FILE" ]; then
-    FOUND_ENTITY=$(find src/main/java -name "$MODULE_NAME" -type d -exec find {} -name "${ENTITY_CAP}.java" \; | head -n 1)
-    
-    if [ -n "$FOUND_ENTITY" ]; then
-        ENTITY_FILE="$FOUND_ENTITY"
-        ENTITY_PKG=$(grep "^package " "$ENTITY_FILE" | head -n 1 | sed 's/package \(.*\);/\1/')
-        echo "Found existing entity at $ENTITY_FILE ($ENTITY_PKG)"
-    elif [ -z "$ENTITY_PKG" ]; then
-        echo "Error: Entity $ENTITY_NAME not found in module $MODULE_NAME and no package specified."
-        echo "Usage: ./create-entity-view.sh <sub_module_name> <entity_name> <entity_package> [--no-acl]"
-        exit 1
-    fi
+if [ -n "$FOUND_ENTITY" ]; then
+    ENTITY_FILE="$FOUND_ENTITY"
+    ENTITY_PKG=$(grep "^package " "$ENTITY_FILE" | head -n 1 | sed 's/package \(.*\);/\1/')
+    echo "Found existing entity at $ENTITY_FILE ($ENTITY_PKG)"
+else
+    ENTITY_PKG="$APP_PACKAGE.$MODULE_NAME.entity"
+    ENTITY_PKG_PATH=$(echo "$ENTITY_PKG" | tr . /)
+    ENTITY_FILE="src/main/java/${ENTITY_PKG_PATH}/${ENTITY_CAP}.java"
 fi
 
 echo "Creating directory structure for module: $MODULE_NAME..."
